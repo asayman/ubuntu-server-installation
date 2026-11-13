@@ -346,8 +346,80 @@ ls: cannot access '/var/run/reboot-required': No such file or directory
 
 ---
 
+## 2026-11-13 — Adım 6: NVIDIA sürücüsü (SSH üzerinden)
+
+### 6.0 Seçenekler (salt okuma)
+
+```bash
+$ lsmod | grep nouveau
+nouveau  3100672  0          # açık kaynak sürücü yüklü
+$ sudo ubuntu-drivers list --gpgpu
+nvidia-driver-{580,595,615}-server-open / -server / -open / (düz)
+$ sudo ubuntu-drivers devices | grep recommended
+driver : nvidia-driver-595-open - distro non-free recommended   # masaüstü önerisi
+```
+
+- Not: `udevadm hwdb is deprecated` ve `aplay command not found` uyarıları zararsız.
+- Karar: **595-server-open**. 580 en kararlı ama en yeni CUDA imajlarını çalıştıramayabilir; 615 en yeni ama daha az test edilmiş.
+
+### 6.1 Kurulum
+
+```bash
+$ sudo DEBIAN_FRONTEND=noninteractive ubuntu-drivers install --gpgpu nvidia:595-server-open
+nvidia-headless-no-dkms-595-server-open
+linux-modules-nvidia-595-server-open-generic
+$ sudo apt-get -y install nvidia-utils-595-server     # --gpgpu nvidia-smi kurmuyor
+$ dpkg -l | grep nvidia
+linux-modules-nvidia-595-server-open-6.8.0-149-generic 6.8.0-149.149
+nvidia-headless-no-dkms-595-server-open 595.91.07-0ubuntu0.24.04.1
+nvidia-utils-595-server 595.91.07-0ubuntu0.24.04.1
+...
+$ cat /lib/modprobe.d/*nvidia* | grep nouveau
+blacklist nouveau
+```
+
+### 6.2 Yeniden başlatma ve doğrulama
+
+```bash
+$ ssh gpu-server 'sudo systemctl reboot'   # ~50 sn sonra SSH geri geldi
+$ lsmod | grep -E "^(nvidia|nouveau)"
+nvidia_uvm, nvidia_drm, nvidia_modeset, nvidia   # nouveau yok ✅
+$ nvidia-smi
+NVIDIA-SMI 595.91.07   Driver Version: 595.91.07   CUDA Version: 13.2
+0  NVIDIA RTX A4000   Off | 00000000:15:00.0 On | 41% 61C P0 51W/140W | 17MiB/16376MiB
+```
+
+### 6.3 Persistence mode
+
+```bash
+$ nvidia-smi -q | grep -i persistence
+Persistence Mode : Disabled
+$ systemctl is-active nvidia-persistenced
+active          # servis çalışıyor ama mod kapalı
+$ systemctl cat nvidia-persistenced | grep ExecStart
+ExecStart=/usr/bin/nvidia-persistenced --user nvidia-persistenced --no-persistence-mode --verbose
+```
+
+- Neden: Ubuntu paketi `--no-persistence-mode` ile başlatıyor.
+- Çözüm: systemd override (paket dosyasına dokunmadan):
+
+```bash
+$ sudo mkdir -p /etc/systemd/system/nvidia-persistenced.service.d
+$ printf "[Service]\nExecStart=\nExecStart=/usr/bin/nvidia-persistenced --user nvidia-persistenced --persistence-mode --verbose\n" \
+    | sudo tee /etc/systemd/system/nvidia-persistenced.service.d/override.conf
+$ sudo systemctl daemon-reload && sudo systemctl restart nvidia-persistenced
+$ nvidia-smi -q | grep -i "Persistence Mode"
+Persistence Mode : Enabled
+$ nvidia-smi --query-gpu=pstate,temperature.gpu,power.draw --format=csv
+P8, 58, 14.01 W
+```
+
+- Sonuç: ✅ Adım 6 tamamlandı. Override'ın yeniden başlatma sonrası kalıcılığı adım 7'deki yeniden başlatmada doğrulanacak.
+
+---
+
 ## Sıradaki adım
 
-- Adım 6: NVIDIA sürücüsü ([docs/06](docs/06-nvidia-surucu.md)). Secure Boot kapalı → MOK kaydı gerekmez.
-- Açık işler: router'da DHCP rezervasyonu (kullanıcı), kurulum sonunda
-  `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.
+- Adım 7: Docker + NVIDIA Container Toolkit ([docs/07](docs/07-docker-nvidia.md)).
+- Açık işler: router'da DHCP rezervasyonu (kullanıcı), persistence mode'un reboot sonrası kontrolü,
+  kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.

@@ -54,3 +54,21 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 - **Yanlış:** Dokümandaki örneği (`eno1`) olduğu gibi kullanmak.
 - **Doğru:** `ip -br a` ile `UP` olan arayüzü bulmak. HP Z4 G4'te kablo `eno2`'deydi, `eno1` DOWN.
 
+
+## NVIDIA sürücüsü
+
+### `ubuntu-drivers install --gpgpu` sonrası `nvidia-smi` yok
+- **Belirti:** Sürücü kuruldu ama `nvidia-smi: command not found`.
+- **Neden:** `--gpgpu` sadece `nvidia-headless-no-dkms-XXX` ve hazır kernel modülünü kurar.
+- **Çözüm:** `sudo apt install nvidia-utils-XXX-server` (aynı sürüm numarası).
+
+### Persistence mode kapalı geliyor
+- **Belirti:** `nvidia-persistenced` aktif ama `nvidia-smi -q` → `Persistence Mode: Disabled`.
+- **Neden:** Ubuntu paketi servisi `--no-persistence-mode` ile başlatıyor.
+- **Çözüm:** systemd override ile `--persistence-mode` (bkz. [06](06-nvidia-surucu.md#63-persistence-mode)).
+- **Yanlış:** `/lib/systemd/system/nvidia-persistenced.service` dosyasını doğrudan düzenlemek.
+  Paket güncellemesinde değişiklik silinir.
+
+### "recommended" sürücü masaüstü varyantı
+- `ubuntu-drivers devices` masaüstü için `nvidia-driver-XXX-open` önerir.
+- Ekransız sunucuda `--gpgpu` + `-server-open` kullanın. Masaüstü grafik paketleri gelmez.

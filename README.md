@@ -24,7 +24,7 @@ Benzer bir sürece ihtiyaç duyan herkes kullanabilir.
 | 3 | [Sabit IP atama (netplan)](docs/03-sabit-ip.md) | SSH üzerinden | ✅ Tamamlandı |
 | 4 | [SSH servisi, anahtar ile uzaktan bağlantı](docs/04-ssh.md) | Kullanıcı | ✅ Tamamlandı |
 | 5 | [Sistem güncelleme, temel paketler, disk genişletme](docs/05-temel-sistem.md) | SSH üzerinden | ✅ Tamamlandı |
-| 6 | [NVIDIA sürücüsü](docs/06-nvidia-surucu.md) | SSH üzerinden | ⏳ |
+| 6 | [NVIDIA sürücüsü](docs/06-nvidia-surucu.md) | SSH üzerinden | ✅ Tamamlandı |
 | 7 | [Docker + NVIDIA Container Toolkit](docs/07-docker-nvidia.md) | SSH üzerinden | ⏳ |
 | 8 | [Python ortamı, PyTorch, YOLO, EgoBlur](docs/08-pytorch-yolo-egoblur.md) | SSH üzerinden | ⏳ |
 | 9 | [Lokal LLM (Ollama vb.)](docs/09-lokal-llm.md) | SSH üzerinden | ⏳ |
