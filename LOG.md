@@ -51,6 +51,14 @@ Kullanıcı adı, MAC adresi ve seri numaraları maskelenmiştir (`<kullanici>` 
 
 - Sonuç: ✅ Diskin tamamı kullanılıyor. Eski Windows bölümleri silinecek (onaylandı).
 
+## 2026-11-13 — Adım 2.4: Kalan installer ekranları
+
+Sonradan sunucuda doğrulananlar:
+- Server name: `gpu-server` (`hostname` çıktısı).
+- OpenSSH server kurulu ve çalışıyor (Mac'ten port 22 açık, `OpenSSH_9.6p1`).
+- SSH şifre ile giriş açık (`/etc/cloud/cloud.cfg.d/99-installer.cfg` → `ssh_pwauth: true`).
+  Anahtar girişi çalıştıktan sonra kapatılacak (docs/04, bölüm 4.7).
+
 ## 2026-11-13 — Adım 2.5: Kurulum tamamlandı, ilk kontroller
 
 Konsolda (kullanıcı):
@@ -251,4 +259,12 @@ default via 192.168.68.1 dev eno2 proto static
 
 - Sonuç: ✅ Sabit IP `192.168.68.118` yeniden başlatma sonrası korunuyor, internet + DNS çalışıyor.
 - Yapılacak (kullanıcı): Router'da `192.168.68.118` için DHCP rezervasyonu (MAC: eno2), çakışmayı önlemek için.
+
+---
+
+## Sıradaki adım
+
+- Adım 5: `apt full-upgrade`, saat dilimi, temel paketler ([docs/05](docs/05-temel-sistem.md)).
+- Açık işler: router'da DHCP rezervasyonu (kullanıcı), kurulum sonunda
+  `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.
 
