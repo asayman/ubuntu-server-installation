@@ -39,6 +39,18 @@ Kişisel/ağ bilgileri (gerçek IP, kullanıcı adı, MAC, seri no) maskelenmiş
 - Çözüm: `Back` ile guided ekrana dönüp **Use an entire disk** (Samsung) + **Set up this disk as an
   LVM group** seçmek; özet ekranında `ubuntu-lv` boyutunu max yapmak.
 
+- Guided ayarlar: Use an entire disk (Samsung 476.939G), LVM: ✅, LUKS şifreleme: ❌
+  (şifreli disk her açılışta konsolda parola ister, uzaktan yönetimi engeller).
+- `ubuntu-lv` Edit → Size: max yapıldı. Sonuç özeti:
+
+| Mount | Boyut | Tip | Cihaz |
+|---|---|---|---|
+| `/` | 473.886G | ext4 | LVM `ubuntu-vg/ubuntu-lv` |
+| `/boot` | 2.000G | ext4 | nvme partition 2 |
+| `/boot/efi` | 1.049G | fat32 | nvme partition 1 (ESP) |
+
+- Sonuç: ✅ Diskin tamamı kullanılıyor. Eski Windows bölümleri silinecek (onaylandı).
+
 ## Adım 2: Ubuntu kurulumu (devam)
 
 _(Kalan ekranlar, `df -h /`, `ip -br a`, `lspci | grep -i nvidia` çıktıları buraya eklenecek.)_
