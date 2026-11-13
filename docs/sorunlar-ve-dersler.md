@@ -72,3 +72,14 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 ### "recommended" sürücü masaüstü varyantı
 - `ubuntu-drivers devices` masaüstü için `nvidia-driver-XXX-open` önerir.
 - Ekransız sunucuda `--gpgpu` + `-server-open` kullanın. Masaüstü grafik paketleri gelmez.
+
+## Docker
+
+### `usermod -G` ile sudo yetkisini kaybetmek
+- **Yanlış:** `sudo usermod -G docker $USER`. Kullanıcı diğer gruplarından (`sudo` dahil) çıkarılır.
+- **Doğru:** `sudo usermod -aG docker $USER` (`-a` = append).
+- Grup üyeliği yeni oturumda geçerli olur. Yeni SSH bağlantısı açın.
+
+### Container içinde CUDA sürümü
+- Container imajının CUDA sürümü sunucudaki sürücünün desteklediği en yüksek sürümü
+  (`nvidia-smi` → `CUDA Version`) aşmamalı. Aşarsa container `CUDA driver version is insufficient` hatası verir.

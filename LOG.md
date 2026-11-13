@@ -418,8 +418,118 @@ P8, 58, 14.01 W
 
 ---
 
+## 2026-11-13 — Adım 7: Docker + NVIDIA Container Toolkit (SSH üzerinden)
+
+### 7.0 Durum
+
+```bash
+$ command -v docker; dpkg -l | grep -E "docker|containerd|podman"
+docker yok    # snap veya docker.io da yok
+```
+
+### 7.1 Docker resmi deposu
+
+```bash
+$ sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+$ gpg --show-keys --with-fingerprint /etc/apt/keyrings/docker.asc
+      9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88   # Docker'ın yayınladığı değerle aynı ✅
+$ cat /etc/apt/sources.list.d/docker.sources
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: noble
+Components: stable
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/docker.asc
+$ apt-cache policy docker-ce
+Candidate: 5:29.9.3-1~ubuntu.24.04~noble
+```
+
+### 7.2 Docker Engine
+
+```bash
+$ sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+$ docker --version; docker compose version
+Docker version 29.9.3, build 5457199
+Docker Compose version v5.7.1
+$ systemctl is-enabled docker containerd
+enabled
+enabled
+$ sudo docker run --rm hello-world
+Hello from Docker!
+```
+
+### 7.3 docker grubu
+
+- Karar (kullanıcı): `docker` grubuna ekle. Fiilen şifresiz root yetkisi olduğu bilinerek seçildi
+  (tek kullanıcılı ev sunucusu). Alternatifler: `sudo docker`, rootless Docker.
+
+```bash
+$ sudo usermod -aG docker "$USER"
+# yeni SSH oturumu:
+$ id -nG
+<kullanici> adm cdrom sudo dip plugdev lxd docker
+$ docker ps          # sudo olmadan çalıştı ✅
+```
+
+### 7.4 NVIDIA Container Toolkit
+
+```bash
+$ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+$ gpg --show-keys --with-fingerprint /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+pub   rsa4096 2017-09-28 [SCE]
+      C95B 321B 61E8 8C18 09C4  F759 DDCA E044 F796 ECB0
+uid   NVIDIA CORPORATION (Open Source Projects) <cudatools@nvidia.com>
+$ cat /etc/apt/sources.list.d/nvidia-container-toolkit.list
+deb [signed-by=...] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /
+#deb [signed-by=...] .../experimental/deb/$(ARCH) /     # experimental kapalı
+$ sudo apt-get -y install nvidia-container-toolkit
+$ nvidia-ctk --version
+NVIDIA Container Toolkit CLI version 1.20.2
+```
+
+### 7.5 nvidia runtime
+
+```bash
+$ sudo nvidia-ctk runtime configure --runtime=docker
+level=info msg="Wrote updated config to /etc/docker/daemon.json"
+$ cat /etc/docker/daemon.json
+{ "runtimes": { "nvidia": { "args": [], "path": "nvidia-container-runtime" } } }
+$ sudo systemctl restart docker
+$ docker info | grep -i runtimes
+ Runtimes: io.containerd.runc.v2 nvidia runc
+```
+
+### 7.6 GPU testi
+
+```bash
+$ docker run --rm --gpus all nvidia/cuda:13.0.0-base-ubuntu24.04 \
+    nvidia-smi --query-gpu=name,driver_version,memory.total,persistence_mode --format=csv
+NVIDIA RTX A4000, 595.91.07, 16376 MiB, Enabled
+```
+
+- İmaj CUDA 13.0 ≤ sürücü üst sınırı 13.2 → uyumlu.
+
+### 7.7 Yeniden başlatma sonrası
+
+```bash
+$ ssh gpu-server 'sudo systemctl reboot'   # ~50 sn
+$ systemctl is-active docker nvidia-persistenced
+active
+active
+$ nvidia-smi -q | grep -i "Persistence Mode"
+Persistence Mode : Enabled            # adım 6 override'ı kalıcı ✅
+$ docker run --rm --gpus all nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi -L
+GPU 0: NVIDIA RTX A4000 (UUID: GPU-<maskelendi>)
+$ systemctl --failed
+(failed unit yok)
+```
+
+- Sonuç: ✅ Adım 7 tamamlandı.
+
+---
+
 ## Sıradaki adım
 
-- Adım 7: Docker + NVIDIA Container Toolkit ([docs/07](docs/07-docker-nvidia.md)).
-- Açık işler: router'da DHCP rezervasyonu (kullanıcı), persistence mode'un reboot sonrası kontrolü,
-  kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.
+- Adım 8: Python ortamı, PyTorch, YOLO, EgoBlur ([docs/08](docs/08-pytorch-yolo-egoblur.md)).
+- Açık işler: router'da DHCP rezervasyonu (kullanıcı), kurulum sonunda
+  `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.
