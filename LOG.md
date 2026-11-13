@@ -51,6 +51,34 @@ Kişisel/ağ bilgileri (gerçek IP, kullanıcı adı, MAC, seri no) maskelenmiş
 
 - Sonuç: ✅ Diskin tamamı kullanılıyor. Eski Windows bölümleri silinecek (onaylandı).
 
-## Adım 2: Ubuntu kurulumu (devam)
+## 2026-11-13 — Adım 2.5: Kurulum tamamlandı, ilk kontroller
 
-_(Kalan ekranlar, `df -h /`, `ip -br a`, `lspci | grep -i nvidia` çıktıları buraya eklenecek.)_
+Konsolda (kullanıcı):
+
+| Kontrol | Sonuç |
+|---|---|
+| `lsb_release -a` | Ubuntu 24.04.2 LTS |
+| `lspci \| grep -i nvidia` | NVIDIA RTX A4000 görünüyor |
+| `df -h /` | Size 466G, Used 11G ✅ (LVM max ayarı tuttu) |
+| `ip -br a` | DHCP: `192.168.68.118/24` |
+
+İstemciden (Mac) erişim kontrolü:
+
+```bash
+$ ping -c 2 192.168.68.118
+2 packets transmitted, 2 packets received, 0.0% packet loss
+$ nc -z 192.168.68.118 22
+Connection to 192.168.68.118 port 22 [tcp/ssh] succeeded!
+$ ssh-keyscan -t ed25519 192.168.68.118
+# 192.168.68.118:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.2
+$ route -n get default | grep gateway
+    gateway: 192.168.68.1
+```
+
+- Sonuç: ✅ Sunucu ağda, OpenSSH 9.6p1 çalışıyor (kurulumda "Install OpenSSH server" seçildi).
+- Not: 192.168.68.0/24 ağı, TP-Link Deco mesh sistemlerinin varsayılan ağıdır.
+- Karar: Sabit IP olarak mevcut adres `192.168.68.118` korunacak. Router'da DHCP rezervasyonu +
+  sunucuda netplan statik ayar yapılacak (IP çakışmasını önlemek için ikisi birlikte).
+
+## Adım 3-4: Sabit IP ve SSH (devam)
+
