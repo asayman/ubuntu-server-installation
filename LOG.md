@@ -16,6 +16,14 @@ Kişisel/ağ bilgileri (gerçek IP, kullanıcı adı, MAC, seri no) maskelenmiş
 
 - Dokümantasyon iskeleti (adım 1-9), sorunlar dosyası ve bu günlük oluşturuldu.
 
+## 2026-11-13 — Adım 2.1: BIOS (HP Z4 G4)
+
+- Makine: HP Z4 G4 Workstation. BIOS'a `F10` ile girildi.
+- Secure Boot: ✅ kapatıldı.
+- SATA: HP BIOS'ta AHCI/RAID listesi yok; tek seçenek "SATA Controller RAID Mode" (on/off).
+  - Karar: **Off** = AHCI modu.
+- Ders: HP iş istasyonlarında "AHCI" adlı bir seçenek aramayın. RAID Mode kapalı = AHCI.
+
 ## Adım 2: Ubuntu kurulumu
 
 _(Kullanıcı tarafından yapılacak. Not: installer ekranında yapılan seçimler, `df -h /`, `ip -br a`,

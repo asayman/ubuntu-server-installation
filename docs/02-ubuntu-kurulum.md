@@ -19,6 +19,26 @@ BIOS'a giriş: Dell `F2`, HP `F10`, Lenovo `F1`. Boot menüsü: Dell `F12`, HP `
 
 > Secure Boot'u açık bırakmak isterseniz bkz. [sorunlar-ve-dersler.md](sorunlar-ve-dersler.md#secure-boot-ve-nvidia).
 
+### 2.1.1 Bu kurulumda: HP Z4 G4 Workstation
+
+HP BIOS'unda menü adları farklıdır. Bu kurulumda yapılanlar:
+
+| Ayar | HP BIOS'taki yeri | Yapılan |
+|---|---|---|
+| BIOS'a giriş | Açılışta `F10` | ✅ |
+| Boot menüsü | Açılışta `F9` | USB'den açılışta kullanılacak |
+| Secure Boot | Advanced → Secure Boot Configuration → "Legacy Support Disable and Secure Boot Disable" | ✅ Kapatıldı |
+| SATA modu | Advanced → System Options (veya Storage Options) → **SATA Controller RAID Mode** | **Off** (kutucuk işaretsiz). HP'de ayrı bir "AHCI" seçeneği yoktur; RAID Mode kapalı = **AHCI**. |
+| Elektrik kesintisi sonrası | Advanced → Built-In Device Options / Power-On Options → "After Power Loss" | Power On veya Previous State (isteğe bağlı) |
+
+Notlar:
+- Değişikliklerden sonra `F10` / Main → **Save Changes and Exit** ile kaydedin.
+- HP, Secure Boot ayarı değişince bir sonraki açılışta ekranda 4 haneli bir kod gösterip
+  onay isteyebilir. Kodu yazıp `Enter`'a basın.
+- SSD NVMe ise RAID Mode ayarı onu etkilemez; NVMe her iki modda da görünür.
+  SATA SSD ise RAID Mode **kapalı** olmalı, yoksa installer diski göremeyebilir.
+- Disk daha önce Windows ile RAID modunda kullanıldıysa önemli değil; kurulum diski siler.
+
 ## 2.2 USB'den önyükleme
 
 1. USB'yi takın, bilgisayarı açın, boot menüsü tuşuna basın.
