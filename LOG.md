@@ -528,8 +528,54 @@ $ systemctl --failed
 
 ---
 
+## 2026-11-13 — Adım 8: Python ortamı (devam ediyor)
+
+### Kararlar
+
+- Yaklaşım: `uv` sanal ortamı, doğrudan sunucuda (proje başına ayrı venv). Docker değil.
+- Notebook: VS Code Remote-SSH + `ipykernel`. JupyterLab sonra kurulacak.
+- PyTorch: `cu130` deposu (`torch 2.14.1+cu130`). Sürücü üst sınırı CUDA 13.2.
+
+### 8.1 uv
+
+```bash
+$ curl -LsSf https://astral.sh/uv/install.sh -o ~/tmp/uv-install.sh   # önce indir, incele
+$ head ~/tmp/uv-install.sh
+APP_VERSION="0.13.8"
+$ sh ~/tmp/uv-install.sh
+$ uv --version
+uv 0.13.8 (x86_64-unknown-linux-gnu)
+```
+
+- Not: `ssh gpu-server 'command -v uv'` boş döner. Etkileşimsiz SSH `~/.bashrc` PATH satırını okumaz.
+  Tam yol `~/.local/bin/uv` veya `bash -lc` kullanın.
+
+### 8.2 PyTorch kurulumu (tmux içinde, arka planda)
+
+- İnternet hızı düştü (tüm ev ağı, Mac dahil: 10-300 KB/s). Sunucu kaynaklı değil.
+- Ayrı bulgu: `ethtool eno2` → `Speed: 100Mb/s`. Kart 1 Gb/s destekliyor; kablo/port kontrol edilecek.
+- 1. deneme hata:
+
+```
+error: Failed to download `nvidia-cufft==12.0.0.61`
+  cause: operation timed out
+```
+
+- Neden: `uv` aynı anda 10+ dosya indiriyor; yavaş bağlantıda bir dosya 30 sn (varsayılan timeout) veri alamıyor.
+- Çözüm: `UV_HTTP_TIMEOUT=300`, `UV_CONCURRENT_DOWNLOADS=2`, komut başına 5 tekrar deneme.
+  Script `~/setup-08.sh`, `tmux` oturumu `setup8`, çıktı `~/setup-08.log`.
+
+```bash
+tmux new-session -d -s setup8 "bash ~/setup-08.sh > ~/setup-08.log 2>&1"
+grep "^###" ~/setup-08.log     # STEP / RETRY / DONE / FAILED satırları
+```
+
+- Durum: ⏳ indirme sürüyor.
+
+---
+
 ## Sıradaki adım
 
-- Adım 8: Python ortamı, PyTorch, YOLO, EgoBlur ([docs/08](docs/08-pytorch-yolo-egoblur.md)).
-- Açık işler: router'da DHCP rezervasyonu (kullanıcı), kurulum sonunda
-  `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.
+- Adım 8.2 bitince: GPU testi sonucu, YOLO inference, FFmpeg, EgoBlur ([docs/08](docs/08-pytorch-yolo-egoblur.md)).
+- Açık işler: router'da DHCP rezervasyonu (kullanıcı), `eno2` 100 Mb/s bağlantı (kablo/port),
+  kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.

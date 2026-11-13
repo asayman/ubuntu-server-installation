@@ -83,3 +83,11 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 ### Container içinde CUDA sürümü
 - Container imajının CUDA sürümü sunucudaki sürücünün desteklediği en yüksek sürümü
   (`nvidia-smi` → `CUDA Version`) aşmamalı. Aşarsa container `CUDA driver version is insufficient` hatası verir.
+
+## Python / uv
+
+### Yavaş internette `uv pip install` zaman aşımı
+- **Belirti:** `error: Failed to download ... cause: operation timed out` (PyTorch CUDA paketleri, `pypi.nvidia.com`).
+- **Neden:** `uv` çok sayıda dosyayı paralel indirir; varsayılan HTTP timeout 30 sn.
+- **Çözüm:** `export UV_HTTP_TIMEOUT=300 UV_CONCURRENT_DOWNLOADS=2` ve komutu tekrar deneyen bir döngü.
+  Uzun kurulumları `tmux` içinde çalıştırın; SSH koparsa kurulum durmaz.
