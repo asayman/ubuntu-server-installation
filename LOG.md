@@ -82,3 +82,22 @@ $ route -n get default | grep gateway
 
 ## Adım 3-4: Sabit IP ve SSH (devam)
 
+### SSH anahtarı (istemci: Mac)
+
+Mevcut anahtar yerine bu sunucuya özel yeni anahtar oluşturuldu:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/gpu_server -N "" -C "mac-to-gpu-server" -q
+ls -l ~/.ssh/gpu_server*
+# -rw-------  ~/.ssh/gpu_server
+# -rw-r--r--  ~/.ssh/gpu_server.pub
+```
+
+- Neden ayrı anahtar: sunucuya özel erişim tek başına iptal edilebilir; diğer sunuculara erişimi etkilemez.
+- Parola (passphrase) boş: SSH üzerinden otomasyon (etkileşimsiz komut) için. Daha güvenlisi
+  parola + `ssh-agent` (macOS'ta `UseKeychain yes`).
+- Karar: Router'a şu an erişim yok. Sabit IP **sadece netplan** ile verilecek (`192.168.68.118`).
+  Router'da DHCP rezervasyonu daha sonra yapılacak.
+  - Risk: Rezervasyon yapılana kadar router bu IP'yi başka cihaza verebilir (düşük ihtimal; router
+    genelde aynı MAC'e aynı IP'yi tutar).
+
