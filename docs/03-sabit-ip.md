@@ -52,6 +52,7 @@ network:
     eno1:
       dhcp4: false
       dhcp6: false
+      wakeonlan: true
       addresses:
         - 192.168.1.50/24
       routes:
@@ -66,6 +67,10 @@ Dosya izinleri (netplan 0644 izinli dosyalarda uyarı verir):
 ```bash
 sudo chmod 600 /etc/netplan/01-static.yaml
 ```
+
+`wakeonlan: true`: Wake on LAN için. BIOS'ta da Wake On LAN açık ve
+S5 Maximum Power Savings kapalı olmalı (bkz. [02](02-ubuntu-kurulum.md)). Mac'ten uyandırma:
+`brew install wakeonlan && wakeonlan <MAC_ADRESI>` (MAC adresi: `ip link show eno1`).
 
 ## 3.4 Uygulama
 

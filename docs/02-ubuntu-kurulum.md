@@ -31,6 +31,17 @@ HP BIOS'unda menü adları farklıdır. Bu kurulumda yapılanlar:
 | SATA modu | Advanced → System Options (veya Storage Options) → **SATA Controller RAID Mode** | **Off** (kutucuk işaretsiz). HP'de ayrı bir "AHCI" seçeneği yoktur; RAID Mode kapalı = **AHCI**. |
 | Elektrik kesintisi sonrası | Advanced → Built-In Device Options / Power-On Options → "After Power Loss" | Power On veya Previous State (isteğe bağlı) |
 
+| Wake On LAN | Advanced → Power Management Options (veya Built-In Device Options) → **Wake On LAN** | **Boot to Hard Drive** |
+| S5 Maximum Power Savings | Advanced → Power Management Options | **Disabled**. Açıksa kapalı makinede ağ kartı tamamen kapanır ve WoL çalışmaz. |
+
+Wake On LAN seçenekleri:
+- **Boot to Network:** Uyanınca PXE ile ağdan boot etmeye çalışır. Bu kurulum için yanlış seçim.
+- **Boot to Hard Drive:** Uyanınca doğrudan diskten (Ubuntu) açılır. Bu kurulumda seçilen.
+- **Normal Boot Order:** Boot sırasını izler; USB veya ağ önde ise oradan açılmaya çalışabilir.
+
+İşletim sistemi tarafında da WoL açık olmalı. Netplan'da arayüz altına `wakeonlan: true`
+eklenir (bkz. [03](03-sabit-ip.md)).
+
 Notlar:
 - Değişikliklerden sonra `F10` / Main → **Save Changes and Exit** ile kaydedin.
 - HP, Secure Boot ayarı değişince bir sonraki açılışta ekranda 4 haneli bir kod gösterip
