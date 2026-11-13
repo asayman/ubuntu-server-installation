@@ -35,4 +35,10 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 
 ## Kurulum sırasında yaşananlar
 
-_(Kurulum ilerledikçe eklenecek.)_
+### Custom storage layout ekranında takılmak
+- **Belirti:** "To continue you need to: Mount a filesystem at / / Select a boot disk".
+  Disk eski Windows bölümleriyle (ESP, MSR, NTFS) listeleniyor.
+- **Neden:** "Custom storage layout" her şeyin elle yapılmasını ister (boot disk, /boot, VG, LV, `/`).
+- **Doğru:** `Back` → **Use an entire disk** → hedef disk (USB değil!) → **Set up this disk as an LVM group**
+  → özet ekranında `ubuntu-lv` → Edit → Size: max.
+- **Yanlış:** Kurulum USB'sini (Kingston vb.) hedef disk seçmek.

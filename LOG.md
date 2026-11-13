@@ -26,7 +26,19 @@ Kişisel/ağ bilgileri (gerçek IP, kullanıcı adı, MAC, seri no) maskelenmiş
 - S5 Maximum Power Savings: Disabled olmalı. Açıksa WoL kapalı makinede çalışmaz.
 - Ders: HP iş istasyonlarında "AHCI" adlı bir seçenek aramayın. RAID Mode kapalı = AHCI.
 
-## Adım 2: Ubuntu kurulumu
+## 2026-11-13 — Adım 2.3: Storage ekranı
 
-_(Kullanıcı tarafından yapılacak. Not: installer ekranında yapılan seçimler, `df -h /`, `ip -br a`,
-`lspci | grep -i nvidia` çıktıları buraya eklenecek.)_
+- Installer'ın gördüğü diskler:
+  - `SAMSUNG_MZVLB512HBJQ-000H1` (Samsung PM981a **NVMe**, 476.939G). Hedef disk.
+    Üzerinde eski Windows bölümleri var: ESP 100M, MSR 16M, NTFS 476.196G, NTFS (recovery) 643M.
+  - `Kingston_DataTraveler_3.0` 57.796G: kurulum USB'si (dokunulmaz).
+  - `Generic_STORAGE_DEVICE` 0B: dahili kart okuyucu (önemsiz).
+- Disk NVMe olduğu için BIOS'taki "SATA Controller RAID Mode" ayarı bu diski etkilemez.
+- Sorun: "Custom storage layout" seçildi. Ekran "To continue you need to: Mount a filesystem at / ·
+  Select a boot disk" diyerek ilerlemiyor. Custom modda ESP, /boot, VG ve LV elle oluşturulmalı.
+- Çözüm: `Back` ile guided ekrana dönüp **Use an entire disk** (Samsung) + **Set up this disk as an
+  LVM group** seçmek; özet ekranında `ubuntu-lv` boyutunu max yapmak.
+
+## Adım 2: Ubuntu kurulumu (devam)
+
+_(Kalan ekranlar, `df -h /`, `ip -br a`, `lspci | grep -i nvidia` çıktıları buraya eklenecek.)_
