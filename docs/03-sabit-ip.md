@@ -94,11 +94,30 @@ ping -c 3 ubuntu.com       # DNS
 
 Hepsi cevap veriyorsa tamam. Bir kez `sudo reboot` yapıp IP'nin korunduğunu da kontrol edin.
 
+## 3.6 (Alternatif) SSH üzerinden uzaktan uygulama
+
+`netplan try` Enter onayı ister; etkileşimsiz SSH'ta çalışmaz. Uzaktan uygularken önce otomatik
+geri alma zamanlayıcısı kurun, sonra uygulayın, yeni bağlantıyla doğrulayıp zamanlayıcıyı iptal edin:
+
+```bash
+sudo cp /etc/netplan/50-cloud-init.yaml /root/50-cloud-init.yaml.bak
+# (yeni 01-static.yaml yazıldı, 50-cloud-init.yaml silindi, netplan generate OK)
+sudo systemd-run --unit=netplan-rollback --on-active=180 /bin/sh -c \
+  "rm -f /etc/netplan/01-static.yaml; cp /root/50-cloud-init.yaml.bak /etc/netplan/50-cloud-init.yaml; netplan apply"
+sudo nohup netplan apply >/tmp/netplan-apply.log 2>&1 &
+# birkaç saniye bekleyin, YENİ bir SSH bağlantısıyla doğrulayın:
+ip route | head -1          # "proto static" görmelisiniz
+sudo systemctl stop netplan-rollback.timer
+```
+
+Bu kurulumda kullanılan yöntem budur (bkz. [LOG.md](../LOG.md)).
+
 ## Sık hatalar
 
 - `Error in network definition: ... expected mapping`: girinti hatası (Tab veya yanlış boşluk).
 - `gateway4 has been deprecated`: eski rehberlerdeki `gateway4:` yerine `routes: - to: default` kullanın.
 - `Permissions for /etc/netplan/... are too open`: `chmod 600` yapın.
 - Arayüz adı yanlışsa ayar uygulanmaz; `ip -br a` çıktısındaki adı aynen yazın.
+  Örn. HP Z4 G4'te iki port var (`eno1`, `eno2`); bu kurulumda kablo `eno2`'deydi.
 
 Sonraki adım: [04 - SSH](04-ssh.md)

@@ -20,9 +20,9 @@ Benzer bir sürece ihtiyaç duyan herkes kullanabilir.
 | # | Adım | Kim yapar | Durum |
 |---|---|---|---|
 | 1 | [ISO indirme ve Rufus ile USB hazırlama](docs/01-usb-hazirlama.md) | Kullanıcı (Windows) | ✅ Tamamlandı |
-| 2 | [BIOS ayarları ve Ubuntu Server kurulumu](docs/02-ubuntu-kurulum.md) | Kullanıcı (fiziksel) | 🔄 Devam ediyor |
-| 3 | [Sabit IP atama (netplan)](docs/03-sabit-ip.md) | Kullanıcı (fiziksel) | ⏳ |
-| 4 | [SSH servisi, anahtar ile uzaktan bağlantı](docs/04-ssh.md) | Kullanıcı | ⏳ |
+| 2 | [BIOS ayarları ve Ubuntu Server kurulumu](docs/02-ubuntu-kurulum.md) | Kullanıcı (fiziksel) | ✅ Tamamlandı |
+| 3 | [Sabit IP atama (netplan)](docs/03-sabit-ip.md) | SSH üzerinden | ✅ Tamamlandı |
+| 4 | [SSH servisi, anahtar ile uzaktan bağlantı](docs/04-ssh.md) | Kullanıcı | ✅ Tamamlandı |
 | 5 | [Sistem güncelleme, temel paketler, disk genişletme](docs/05-temel-sistem.md) | SSH üzerinden | ⏳ |
 | 6 | [NVIDIA sürücüsü](docs/06-nvidia-surucu.md) | SSH üzerinden | ⏳ |
 | 7 | [Docker + NVIDIA Container Toolkit](docs/07-docker-nvidia.md) | SSH üzerinden | ⏳ |

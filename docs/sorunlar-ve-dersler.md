@@ -42,3 +42,15 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 - **Doğru:** `Back` → **Use an entire disk** → hedef disk (USB değil!) → **Set up this disk as an LVM group**
   → özet ekranında `ubuntu-lv` → Edit → Size: max.
 - **Yanlış:** Kurulum USB'sini (Kingston vb.) hedef disk seçmek.
+
+### Uzaktan `netplan apply` sonrası SSH zaman aşımı
+- **Belirti:** `ssh: connect to host 192.168.68.118 port 22: Operation timed out`
+- **Neden:** DHCP → statik geçişinde arayüz birkaç saniye yeniden yapılandırılıyor.
+- **Çözüm:** Birkaç saniye bekleyip yeniden bağlanmak. Önlem olarak `systemd-run --on-active=180`
+  ile otomatik geri alma zamanlayıcısı kurmak (bkz. [03](03-sabit-ip.md#36-alternatif-ssh-üzerinden-uzaktan-uygulama)).
+- **Sonuç:** IP aynı kaldığı için ikinci denemede bağlantı geldi.
+
+### Yanlış arayüz adı
+- **Yanlış:** Dokümandaki örneği (`eno1`) olduğu gibi kullanmak.
+- **Doğru:** `ip -br a` ile `UP` olan arayüzü bulmak. HP Z4 G4'te kablo `eno2`'deydi, `eno1` DOWN.
+

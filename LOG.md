@@ -101,3 +101,154 @@ ls -l ~/.ssh/gpu_server*
   - Risk: Rezervasyon yapılana kadar router bu IP'yi başka cihaza verebilir (düşük ihtimal; router
     genelde aynı MAC'e aynı IP'yi tutar).
 
+### SSH bağlantısı ve geçici şifresiz sudo (kullanıcı)
+
+```bash
+ssh-copy-id -i ~/.ssh/gpu_server.pub <kullanici>@192.168.68.118
+ssh -i ~/.ssh/gpu_server <kullanici>@192.168.68.118
+echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/90-setup-nopasswd
+sudo chmod 440 /etc/sudoers.d/90-setup-nopasswd
+sudo visudo -c        # parsed OK
+```
+
+- Sonuç: ✅ Tüm komutlar çalıştı, `visudo -c` → `parsed OK`.
+- Gizlilik: Gerçek kullanıcı adı repoda `<kullanici>` olarak maskelenmiştir.
+
+İstemci `~/.ssh/config` (Mac; mevcut dosya önce yedeklendi):
+
+```
+Host gpu-server
+    HostName 192.168.68.118
+    User <kullanici>
+    IdentityFile ~/.ssh/gpu_server
+    IdentitiesOnly yes
+    ServerAliveInterval 30
+```
+
+Test:
+
+```bash
+$ ssh -o BatchMode=yes gpu-server 'hostname; sudo -n true && echo SUDO_OK; uname -r'
+gpu-server
+SUDO_OK
+6.8.0-149-generic
+```
+
+- Sonuç: ✅ Şifresiz SSH + şifresiz sudo çalışıyor. Kernel `6.8.0-149-generic` (GA kernel).
+
+---
+
+## 2026-11-13 — Adım 3: Sabit IP (netplan, SSH üzerinden)
+
+### Mevcut durum
+
+```bash
+$ ip -br a
+lo     UNKNOWN  127.0.0.1/8 ::1/128
+eno2   UP       192.168.68.118/24 metric 100 fe80::.../64
+eno1   DOWN
+$ cat /etc/netplan/50-cloud-init.yaml
+network:
+  version: 2
+  ethernets:
+    eno2:
+      dhcp4: true
+$ resolvectl dns
+Link 2 (eno2): 64.6.64.6 64.6.65.6 192.168.68.1
+$ ls /etc/cloud/cloud-init.disabled
+/etc/cloud/cloud-init.disabled
+$ sudo ethtool eno2 | grep Wake-on
+	Supports Wake-on: pumbg
+	Wake-on: g
+```
+
+Gözlemler:
+- HP Z4 G4'te iki onboard ethernet var: **eno1** (boş) ve **eno2** (kablo takılı). Dokümandaki
+  örnek `eno1` değil, gerçek arayüz `eno2`. → Her zaman `ip -br a` ile kontrol edin.
+- Ubuntu installer, ilk açılıştan sonra cloud-init'i zaten devre dışı bırakıyor
+  (`/etc/cloud/cloud-init.disabled`). Yine de `99-disable-network-config.cfg` ek güvence olarak eklendi.
+- Wake-on-LAN (`g` = magic packet) işletim sisteminde zaten aktif.
+
+### Uygulama (uzaktan, otomatik geri alma ile)
+
+`netplan try` etkileşimli onay (Enter) ister; etkileşimsiz SSH'ta kullanılamaz. Bunun yerine
+önce **180 saniyelik otomatik geri alma zamanlayıcısı** kuruldu, sonra `netplan apply` yapıldı:
+
+```bash
+echo "network: {config: disabled}" | sudo tee /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+sudo cp /etc/netplan/50-cloud-init.yaml /root/50-cloud-init.yaml.bak
+sudo tee /etc/netplan/01-static.yaml <<EOF
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eno2:
+      dhcp4: false
+      dhcp6: false
+      wakeonlan: true
+      addresses:
+        - 192.168.68.118/24
+      routes:
+        - to: default
+          via: 192.168.68.1
+      nameservers:
+        addresses: [192.168.68.1, 1.1.1.1, 8.8.8.8]
+EOF
+sudo chmod 600 /etc/netplan/01-static.yaml
+sudo rm /etc/netplan/50-cloud-init.yaml
+sudo netplan generate                       # GENERATE_OK
+
+# Güvenlik ağı: 180 sn içinde iptal edilmezse eski DHCP ayarına dön
+sudo systemd-run --unit=netplan-rollback --on-active=180 /bin/sh -c \
+  "rm -f /etc/netplan/01-static.yaml; cp /root/50-cloud-init.yaml.bak /etc/netplan/50-cloud-init.yaml; netplan apply"
+
+sudo nohup netplan apply >/tmp/netplan-apply.log 2>&1 &
+```
+
+Karşılaşılan durum:
+
+```
+ssh: connect to host 192.168.68.118 port 22: Operation timed out
+```
+
+- Neden: `netplan apply` arayüzü DHCP'den statiğe geçirirken bağlantı birkaç saniye kesildi;
+  hemen ardından açılan yeni SSH bağlantısı zaman aşımına uğradı.
+- Çözüm: Birkaç saniye bekleyip tekrar denemek. Port 22 ilk denemede açıktı.
+
+Doğrulama:
+
+```bash
+$ ip -br a show eno2
+eno2   UP   192.168.68.118/24 fe80::.../64
+$ ip route
+default via 192.168.68.1 dev eno2 proto static        # "proto dhcp" değil, static ✅
+192.168.68.0/24 dev eno2 proto kernel scope link src 192.168.68.118
+$ resolvectl dns eno2
+Link 2 (eno2): 192.168.68.1 1.1.1.1 8.8.8.8
+$ ping -c2 1.1.1.1      → 0% loss
+$ ping -c2 ubuntu.com   → 0% loss (DNS çalışıyor)
+$ networkctl status eno2
+State: routable (configured)
+eno2: DHCP lease lost                                 # beklenen: DHCP bırakıldı
+```
+
+Geri alma zamanlayıcısı iptal edildi:
+
+```bash
+sudo systemctl stop netplan-rollback.timer
+```
+
+Yeniden başlatma testi:
+
+```bash
+$ ssh gpu-server 'sudo systemctl reboot'
+# ~55 sn sonra port 22 açık
+$ ssh gpu-server 'uptime; ip -br a show eno2; ip route | head -1'
+ up 0 min
+eno2   UP   192.168.68.118/24
+default via 192.168.68.1 dev eno2 proto static
+```
+
+- Sonuç: ✅ Sabit IP `192.168.68.118` yeniden başlatma sonrası korunuyor, internet + DNS çalışıyor.
+- Yapılacak (kullanıcı): Router'da `192.168.68.118` için DHCP rezervasyonu (MAC: eno2), çakışmayı önlemek için.
+
