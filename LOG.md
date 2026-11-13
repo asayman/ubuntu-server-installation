@@ -262,9 +262,92 @@ default via 192.168.68.1 dev eno2 proto static
 
 ---
 
+## 2026-11-13 — Adım 5: Temel sistem (SSH üzerinden)
+
+### 5.0 Durum tespiti (salt okuma)
+
+```bash
+$ uname -r
+6.8.0-149-generic
+$ lsblk / sudo vgs / sudo lvs
+nvme0n1p3 473.9G LVM2_member → ubuntu-vg/ubuntu-lv 473.9G  (VFree 0)
+$ df -h /
+/dev/mapper/ubuntu--vg-ubuntu--lv  466G   11G  432G   3% /
+$ swapon --show
+/swap.img file 8G
+$ timedatectl
+Time zone: Etc/UTC, System clock synchronized: yes, NTP service: active
+$ sudo apt-get update -qq && apt list --upgradable | wc -l
+98   # başlık satırı dahil → 97 paket
+$ dpkg -l unattended-upgrades
+ii  unattended-upgrades 2.9.1+nmu4ubuntu1
+```
+
+- LVM zaten diskin tamamını kullanıyor (kurulumda seçilmişti). `lvextend` **gerekmedi**.
+- 8 GB swap dosyası var, 32 GB RAM için yeterli. Değiştirilmedi.
+
+### 5.1 Sistem güncellemesi
+
+```bash
+# önce kernel güncellemesi var mı?
+$ apt list --upgradable | grep -E "linux-(image|headers|generic|modules)"
+(boş)  # kernel zaten güncel
+$ sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=--force-confold full-upgrade
+...
+Service restarts being deferred: systemd-logind, dbus, unattended-upgrades, ModemManager
+$ cat /var/run/reboot-required.pkgs
+apparmor
+```
+
+- `noninteractive` + `--force-confold`: SSH üzerinden soru çıkıp takılmasın, mevcut ayar dosyaları korunsun.
+- Neden NVIDIA'dan önce: sürücü DKMS ile çalışan kernel'e göre derlenir; önce kernel'i güncel tutmak gereksiz yeniden derlemeyi önler.
+
+### 5.2 Saat dilimi
+
+```bash
+$ sudo timedatectl set-timezone Europe/Istanbul
+Time zone: Europe/Istanbul (+03, +0300)
+```
+
+### 5.3 Temel araçlar
+
+```bash
+$ sudo DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential git curl htop btop nvtop tmux unzip pciutils
+gcc 13.3.0 | git 2.43.0 | tmux 3.4 | nvtop 3.0.2
+```
+
+### 5.6 Otomatik güvenlik güncellemeleri (kontrol)
+
+```bash
+$ cat /etc/apt/apt.conf.d/20auto-upgrades
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+$ grep -v '//' /etc/apt/apt.conf.d/50unattended-upgrades
+Allowed-Origins: noble, noble-security, ESM apps/infra security
+# Automatic-Reboot tanımlı değil → varsayılan false
+```
+
+- Varsayılan uygun: sadece Ubuntu depoları, habersiz yeniden başlatma yok. Değiştirilmedi.
+- NVIDIA kurulumundan sonra kernel güncellemesinde DKMS yeniden derlemesi kontrol edilecek (adım 6).
+
+### 5.7 Yeniden başlatma
+
+```bash
+$ ssh gpu-server 'sudo systemctl reboot'   # ~50 sn sonra SSH geri geldi
+$ uptime; uname -r; ip -br -4 a show eno2; ls /var/run/reboot-required; systemctl --failed
+ up 0 min
+6.8.0-149-generic
+eno2  UP  192.168.68.118/24
+ls: cannot access '/var/run/reboot-required': No such file or directory
+(failed unit yok)
+```
+
+- Sonuç: ✅ Adım 5 tamamlandı.
+
+---
+
 ## Sıradaki adım
 
-- Adım 5: `apt full-upgrade`, saat dilimi, temel paketler ([docs/05](docs/05-temel-sistem.md)).
+- Adım 6: NVIDIA sürücüsü ([docs/06](docs/06-nvidia-surucu.md)). Secure Boot kapalı → MOK kaydı gerekmez.
 - Açık işler: router'da DHCP rezervasyonu (kullanıcı), kurulum sonunda
   `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.
-
