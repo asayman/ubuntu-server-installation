@@ -1,7 +1,7 @@
 # Kurulum Günlüğü
 
 Her kayıt: tarih, adım, çalıştırılan komut, çıktı (kısaltılmış), hata varsa çözümü, sonuç.
-Kişisel/ağ bilgileri (gerçek IP, kullanıcı adı, MAC, seri no) maskelenmiştir.
+Kullanıcı adı, MAC adresi ve seri numaraları maskelenmiştir (`<kullanici>` vb.). Yerel ağ IP'si (192.168.68.x) özel ağ adresidir, internetten erişilemez; olduğu gibi bırakılmıştır.
 
 ---
 
