@@ -20,7 +20,7 @@ Benzer bir sürece ihtiyaç duyan herkes kullanabilir.
 | # | Adım | Kim yapar | Durum |
 |---|---|---|---|
 | 1 | [ISO indirme ve Rufus ile USB hazırlama](docs/01-usb-hazirlama.md) | Kullanıcı (Windows) | ✅ Tamamlandı |
-| 2 | [BIOS ayarları ve Ubuntu Server kurulumu](docs/02-ubuntu-kurulum.md) | Kullanıcı (fiziksel) | ⏳ |
+| 2 | [BIOS ayarları ve Ubuntu Server kurulumu](docs/02-ubuntu-kurulum.md) | Kullanıcı (fiziksel) | 🔄 Devam ediyor |
 | 3 | [Sabit IP atama (netplan)](docs/03-sabit-ip.md) | Kullanıcı (fiziksel) | ⏳ |
 | 4 | [SSH servisi, anahtar ile uzaktan bağlantı](docs/04-ssh.md) | Kullanıcı | ⏳ |
 | 5 | [Sistem güncelleme, temel paketler, disk genişletme](docs/05-temel-sistem.md) | SSH üzerinden | ⏳ |
@@ -28,6 +28,7 @@ Benzer bir sürece ihtiyaç duyan herkes kullanabilir.
 | 7 | [Docker + NVIDIA Container Toolkit](docs/07-docker-nvidia.md) | SSH üzerinden | ⏳ |
 | 8 | [Python ortamı, PyTorch, YOLO, EgoBlur](docs/08-pytorch-yolo-egoblur.md) | SSH üzerinden | ⏳ |
 | 9 | [Lokal LLM (Ollama vb.)](docs/09-lokal-llm.md) | SSH üzerinden | ⏳ |
+| 10 | [(Opsiyonel) Ağ dışından erişim: Tailscale](docs/10-uzaktan-erisim-tailscale.md) | SSH üzerinden | ⏸ Opsiyonel |
 
 - Tüm çalıştırılan komutlar ve çıktıları: [LOG.md](LOG.md)
 - Karşılaşılan sorunlar, doğrular/yanlışlar: [docs/sorunlar-ve-dersler.md](docs/sorunlar-ve-dersler.md)
