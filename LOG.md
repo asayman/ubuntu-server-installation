@@ -570,12 +570,66 @@ tmux new-session -d -s setup8 "bash ~/setup-08.sh > ~/setup-08.log 2>&1"
 grep "^###" ~/setup-08.log     # STEP / RETRY / DONE / FAILED satırları
 ```
 
-- Durum: ⏳ indirme sürüyor.
+- Sonuç (`grep "^###" ~/setup-08.log`):
+
+```
+### STEP 1/4 venv 15:24:34
+### STEP 2/4 torch+torchvision (cu130) 15:24:34
+### RETRY 1/5 15:56:03
+### STEP 3/4 ultralytics+ipykernel 18:24:42
+### STEP 4/4 GPU testi 18:28:46
+### FAILED (satır 22) 18:28:53
+```
+
+- torch + torchvision indirmesi yavaş internette yaklaşık 3 saat sürdü (1 tekrar deneme).
+- Paketler kuruldu, GPU testi `import ultralytics` satırında düştü:
+
+```
+  File ".../site-packages/cv2/__init__.py", line 153, in bootstrap
+ImportError: libGL.so.1: cannot open shared object file: No such file or directory
+```
+
+- Neden: `ultralytics` normal `opencv-python` paketini kurar. Bu paket `libGL.so.1` ister.
+  Ekransız sunucuda `libGL` yok.
+- Seçenekler: (a) `apt install libgl1`, (b) `opencv-python` yerine `opencv-python-headless`.
+  İkisi de yaklaşık 40-50 MB indirme. (b) `ultralytics` güncellenince normal opencv'yi geri getirebilir.
+  Karar: (a), kalıcı çözüm.
+
+```bash
+$ sudo apt-get install -s -y --no-install-recommends libgl1 | grep newly
+0 upgraded, 20 newly installed, 0 to remove and 3 not upgraded.   # ~40 MB (mesa, llvm)
+```
+
+### 8.2b libgl1 + GPU testi tekrar
+
+- Script `~/setup-08b.sh`, `tmux` oturumu `setup8b`, çıktı `~/setup-08b.log`:
+
+```bash
+sudo apt-get update -o Acquire::Retries=5
+sudo apt-get install -y --no-install-recommends -o Acquire::Retries=5 libgl1
+cd ~/projects/yolo && .venv/bin/python - <<PY
+import torch, torchvision, ultralytics, cv2
+...
+x = torch.randn(4096, 4096, device="cuda"); y = x @ x; torch.cuda.synchronize()
+PY
+```
+
+- Çıktı:
+
+```
+torch 2.14.1+cu130 | torchvision 0.29.1+cu130 | ultralytics 8.4.212 | cv2 5.0.0
+cuda available: True | torch CUDA: 13.0
+device: NVIDIA RTX A4000
+matmul ok: (4096, 4096)
+### DONE 15:30:50
+```
+
+- Sonuç: ✅ Adım 8.2 tamamlandı. venv: `~/projects/yolo/.venv` (Python 3.12).
 
 ---
 
 ## Sıradaki adım
 
-- Adım 8.2 bitince: GPU testi sonucu, YOLO inference, FFmpeg, EgoBlur ([docs/08](docs/08-pytorch-yolo-egoblur.md)).
+- YOLO inference testi, FFmpeg, EgoBlur ([docs/08](docs/08-pytorch-yolo-egoblur.md)).
 - Açık işler: router'da DHCP rezervasyonu (kullanıcı), `eno2` 100 Mb/s bağlantı (kablo/port),
   kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.

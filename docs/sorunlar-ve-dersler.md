@@ -91,3 +91,10 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 - **Neden:** `uv` çok sayıda dosyayı paralel indirir; varsayılan HTTP timeout 30 sn.
 - **Çözüm:** `export UV_HTTP_TIMEOUT=300 UV_CONCURRENT_DOWNLOADS=2` ve komutu tekrar deneyen bir döngü.
   Uzun kurulumları `tmux` içinde çalıştırın; SSH koparsa kurulum durmaz.
+
+### `import ultralytics` → `libGL.so.1` hatası
+- **Belirti:** `ImportError: libGL.so.1: cannot open shared object file: No such file or directory` (`cv2` import sırasında).
+- **Neden:** `ultralytics` normal `opencv-python` paketini kurar. Bu paket grafik kütüphanesi `libGL` ister.
+  Ekransız Ubuntu Server'da `libGL` kurulu gelmez.
+- **Çözüm:** `sudo apt-get install -y --no-install-recommends libgl1`.
+- **Alternatif:** `opencv-python-headless`. Ama `ultralytics` güncellenince normal opencv geri gelebilir.
