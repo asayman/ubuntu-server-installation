@@ -528,7 +528,7 @@ $ systemctl --failed
 
 ---
 
-## 2026-11-13 — Adım 8: Python ortamı (devam ediyor)
+## 2026-11-13 — Adım 8: Python ortamı
 
 ### Kararlar
 
@@ -626,10 +626,126 @@ matmul ok: (4096, 4096)
 
 - Sonuç: ✅ Adım 8.2 tamamlandı. venv: `~/projects/yolo/.venv` (Python 3.12).
 
+## 2026-11-14 — Adım 8.3: Model dosyaları, FFmpeg, EgoBlur ortamı
+
+### 8.3a Model ve test videoları başka makineden kopyalandı
+
+- Karar: modeller internetten tekrar indirilmedi. Elimdeki dosyalar LAN üzerinden `rsync` ile kopyalandı.
+
+```bash
+$ ssh gpu-server 'mkdir -p ~/data/models ~/data/egoblur ~/data/videos'
+$ R="rsync -a --partial --exclude=._* --exclude=.DS_Store"
+$ $R <kaynak>/ego_blur_*.jit   gpu-server:data/egoblur/   # EgoBlur gen1 + gen2 (lp, face)
+$ $R <kaynak>/*.pt             gpu-server:data/models/    # YOLO modelleri
+$ $R <kaynak>/*.mp4            gpu-server:data/videos/    # test videoları
+$ ssh gpu-server 'mkdir -p ~/egoblur && ln -sfn ~/data/egoblur ~/egoblur/models'
+```
+
+- 4 EgoBlur `.jit` dosyası (her biri ~420 MB).
+- LAN kopyalama hızı yalnızca ~3 MB/s oldu. Neden henüz araştırılmadı (`eno2` 100 Mb/s bağlantı, bkz. 8.2).
+
+### 8.3b FFmpeg + NVENC/NVDEC + EgoBlur venv
+
+- Script `~/setup-08c.sh`, çıktı `~/setup-08c.log`:
+
+```bash
+sudo apt-get install -y --no-install-recommends -o Acquire::Retries=5 ffmpeg time libnvidia-encode-595-server libnvidia-decode-595-server
+cd ~/egoblur && uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python "torch==2.14.1+cu130" "torchvision==0.29.1+cu130" --index-url https://download.pytorch.org/whl/cu130
+uv pip install --python .venv/bin/python --no-deps egoblur==2.0.1
+uv pip install --python .venv/bin/python moviepy==1.0.3 opencv-python-headless numpy av vrs tqdm decorator imageio imageio-ffmpeg proglog
+```
+
+- torch aynı sürüm (8.2'deki), `uv` önbelleğinden geldi. Tekrar indirme olmadı. Kurulum ~2 dk.
+- `egoblur 2.0.1` paketi `torch==2.9.1` sabitliyor. `--no-deps` ile kuruldu, bağımlılıklar elle verildi.
+  gen1 ve gen2 modelleri torch 2.14.1 ile çalıştı.
+- Sonuç:
+
+```
+### STEP 1/4 apt: ffmpeg + libnvidia-encode/decode 15:39:43
+### STEP 2/4 egoblur venv 15:40:38
+### STEP 3/4 kontrol: ffmpeg GPU 15:41:45
+### STEP 4/4 kontrol: egoblur import 15:41:45
+### DONE 15:41:52
+```
+
+```
+$ ffmpeg -version | head -1
+ffmpeg version 6.1.1-3ubuntu5
+$ ffmpeg -hide_banner -encoders | grep nvenc
+ V....D av1_nvenc   NVIDIA NVENC av1 encoder (codec av1)
+ V....D h264_nvenc  NVIDIA NVENC H.264 encoder (codec h264)
+ V....D hevc_nvenc  NVIDIA NVENC hevc encoder (codec hevc)
+```
+
+- Not: sürücü `--gpgpu` ile kurulduğu için NVENC/NVDEC kütüphaneleri (`libnvidia-encode`, `libnvidia-decode`)
+  gelmez. FFmpeg ile GPU video kodlama için bu iki paket ayrıca kuruldu.
+
+## 2026-11-14 — Adım 8.4: GPU hız testi
+
+- Testler `tmux` içinde, sırayla, GPU boşken çalıştı. `nvidia-smi` ile GPU kullanımı, VRAM ve güç örneklendi.
+- Girdi: 2560x1440 bir araç kamerası videosu, ilk 600 kare. Yalnızca model çıkarımı (bulanıklaştırma yok).
+
+### 8.4a gen2 ilk deneme hataları
+
+- 1. hata: gen1 için yazılmış test kodu modeli yüklerken `m.eval()` çağırıyor. gen2 `.jit` dosyası "frozen" olduğu için hata verdi.
+  Çözüm:
+
+```python
+try:
+    m.eval()
+except RuntimeError:  # gen2 .jit is frozen: already in eval mode
+    pass
+```
+
+- 2. hata: gen2 modeli tensor değil, detectron2 girdi listesi bekliyor:
+
+```
+RuntimeError: forward() Expected a value of type 'List[Dict[str, Tensor]]' for argument 'batched_inputs' but instead found type 'Tensor'.
+```
+
+- Çözüm: gen2 için paketin kendi `EgoblurDetector` sınıfı (`gen2.script.predictor`) kullanıldı
+  (GPU'da 1200 piksele yeniden boyutlandırma + NMS). Çağrı `patch_instances(fields=PATCH_INSTANCES_FIELDS)`
+  içinde olmalı. Resmi demo da böyle yapıyor.
+
+### 8.4b Sonuçlar (RTX A4000)
+
+| Model | ms/kare | kare/sn | GPU ort. | VRAM maks. | Güç ort. |
+|---|---|---|---|---|---|
+| EgoBlur plaka gen1 fp32 | 335.7 | 3.0 | 93% | 2.3 GB | 132 W |
+| EgoBlur plaka gen1 fp16 | 181.9 | 5.5 | 87% | 1.7 GB | 129 W |
+| EgoBlur plaka + yüz gen1 fp16 | 374.0 | 2.7 | 92% | 2.1 GB | 134 W |
+| EgoBlur plaka gen2 fp32, batch 1 | 97.4 | 10.3 | 85% | 1.1 GB | 128 W |
+| EgoBlur plaka gen2 fp16, batch 1 | 63.7 | 15.7 | 76% | 1.0 GB | 127 W |
+| EgoBlur plaka gen2 fp16, batch 4 | 57.8 | 17.3 | 73% | 1.9 GB | 125 W |
+| EgoBlur plaka + yüz gen2 fp16, batch 4 | 107.2 | 9.3 | 81% | 2.3 GB | 129 W |
+| YOLOv8n plaka, 640, half | 13.6 | 73.5 | 11% | 0.2 GB | 54 W |
+| YOLOv8n plaka, 1440, half | 16.6 | 60.2 | 20% | 0.3 GB | 64 W |
+| YOLOv8x yüz, 1440, half | 44.3 | 22.6 | 69% | 0.6 GB | 122 W |
+
+- fp16, fp32'den 1.8 kat hızlı (gen1).
+- gen1 tam çözünürlükte çalışır. gen2 (`EgoblurDetector`) görüntüyü 1200 piksele küçültür. Hız farkının
+  çoğu buradan gelir. Tespit kalitesi bu testte ölçülmedi.
+- Güç: kartın varsayılan ve azami güç sınırı 140 W (`nvidia-smi -q -d POWER`). EgoBlur testlerinde kart bu sınıra yakın çalıştı.
+
+## 2026-11-16 — Adım 8.5: Kopyalanan dosyaların bütünlük kontrolü (md5)
+
+- Neden: kopyalama yavaştı (~3 MB/s), uzun sürdü. Dosyaların bozulmadığını doğrulamak gerekiyordu.
+
+```bash
+$ ssh gpu-server 'cd ~/data/videos && md5sum *.mp4' | awk '{print $1, $2}' | sort -k2 > srv.md5                   # sunucu
+$ md5 -r <kaynak>/*.mp4 | awk '{sub(".*/","",$2); print $1, $2}' | sort -k2 > src.md5                             # kaynak makine (macOS)
+$ diff src.md5 srv.md5 && echo ALL_MATCH
+ALL_MATCH
+```
+
+- 7 videonun hepsi eşleşti.
+- Sonuç: ✅ Adım 8 tamamlandı.
+
 ---
 
 ## Sıradaki adım
 
-- YOLO inference testi, FFmpeg, EgoBlur ([docs/08](docs/08-pytorch-yolo-egoblur.md)).
+- Lokal LLM ([docs/09](docs/09-lokal-llm.md)).
 - Açık işler: router'da DHCP rezervasyonu (kullanıcı), `eno2` 100 Mb/s bağlantı (kablo/port),
   kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.

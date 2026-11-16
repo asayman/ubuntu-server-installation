@@ -98,3 +98,22 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
   Ekransız Ubuntu Server'da `libGL` kurulu gelmez.
 - **Çözüm:** `sudo apt-get install -y --no-install-recommends libgl1`.
 - **Alternatif:** `opencv-python-headless`. Ama `ultralytics` güncellenince normal opencv geri gelebilir.
+
+## EgoBlur
+
+### `egoblur` paketi torch'u eski sürüme indiriyor
+- **Belirti:** `uv pip install egoblur==2.0.1` mevcut torch 2.14.1 yerine `torch==2.9.1` kurar (büyük indirme).
+- **Çözüm:** `uv pip install --no-deps egoblur==2.0.1`, sonra gerekli paketleri elle kurun
+  (`moviepy==1.0.3 opencv-python-headless numpy av vrs tqdm ...`). Modeller torch 2.14.1 ile çalıştı.
+
+### gen2 `.jit` modelinde `m.eval()` hatası
+- **Belirti:** gen1 için yazılmış kod gen2 modelini yüklerken `m.eval()` satırında `RuntimeError` verir.
+- **Neden:** gen2 `.jit` dosyası "frozen" TorchScript. Zaten eval modunda, `training` bir sabit.
+- **Çözüm:** `m.eval()` çağrısını `try/except RuntimeError` içine alın.
+
+### gen2 modeli tensor kabul etmiyor
+- **Belirti:** `RuntimeError: forward() Expected a value of type 'List[Dict[str, Tensor]]' for argument 'batched_inputs' but instead found type 'Tensor'.`
+- **Neden:** gen2 bir detectron2 modeli. Girdi listesi bekler, gen1 gibi düz tensor değil.
+- **Çözüm:** paketin kendi sınıfını kullanın: `gen2.script.predictor.EgoblurDetector`.
+  Çağrıyı `with patch_instances(fields=PATCH_INSTANCES_FIELDS):` içinde yapın (resmi demo gibi).
+- **Not:** `EgoblurDetector` görüntüyü 1200 piksele küçültür. gen1 ile kutu sayısı karşılaştırması yaparken bunu hesaba katın.
