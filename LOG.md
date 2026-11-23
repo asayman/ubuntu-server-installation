@@ -831,5 +831,7 @@ sudo systemctl restart ollama
 
 ## Sıradaki adım
 
-- Açık işler: router'da DHCP rezervasyonu (kullanıcı), `eno2` 100 Mb/s bağlantı (kablo/port),
-  kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.
+- Kapanan işler (2026-11-23, kullanıcı bildirdi): router'da MAC-IP rezervasyonu daha önce yapılmış.
+  `eno2` 100 Mb/s: sınır Wi-Fi router'ın portunda, mevcut donanımla artırılamıyor.
+- Karar (2026-11-23, kullanıcı): SSH şifre girişi açık kalacak, adımlardan çıkarıldı.
+- Açık işler: kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak.
