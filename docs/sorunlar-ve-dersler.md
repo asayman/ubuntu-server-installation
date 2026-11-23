@@ -117,3 +117,25 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 - **Çözüm:** paketin kendi sınıfını kullanın: `gen2.script.predictor.EgoblurDetector`.
   Çağrıyı `with patch_instances(fields=PATCH_INSTANCES_FIELDS):` içinde yapın (resmi demo gibi).
 - **Not:** `EgoblurDetector` görüntüyü 1200 piksele küçültür. gen1 ile kutu sayısı karşılaştırması yaparken bunu hesaba katın.
+
+## Ollama / Open WebUI
+
+### `ollama pull` yavaş internette takılıyor
+- **Neden:** büyük blob'u 16 paralel bağlantıyla indirir. Bunu değiştiren belgelenmiş bir ayar bulunamadı.
+- **Çözüm:** blob'u `registry.ollama.ai/v2/library/<model>/blobs/sha256:<digest>` adresinden tek bağlantıyla indirin,
+  sha256 doğrulayın, `blobs` klasörüne koyun, sonra `ollama pull` çalıştırın ([docs/09](09-lokal-llm.md)).
+
+### `curl --retry` ile `-C -` birlikte baştan başladı
+- **Belirti:** tekrar denemede 6.4 MB'lık dosya 24 KB'a düştü.
+- **Çözüm:** `--retry` kullanmayın; `until curl -C - ...; do sleep 30; done` döngüsü kurun.
+
+### `pkill -f` kendi SSH komutunu öldürdü
+- **Neden:** `ssh sunucu 'pkill -f "ollama pull"'` içindeki metin, uzak kabuğun kendi komut satırıyla da eşleşir.
+- **Çözüm:** `pkill -f "[o]llama pull"`.
+
+### Docker `-p` portları UFW'yi atlar
+- **Çözüm:** yalnız yerel ağa açılacak servisi `--network=host` ile çalıştırıp UFW kuralı yazın.
+
+### Open WebUI ilk açılışta dakikalarca `unhealthy`
+- **Neden:** embedding modelinin tüm ONNX/OpenVINO kopyalarını HuggingFace'ten indirir; indirme bitmeden port açılmaz.
+- **Çözüm:** `-e RAG_EMBEDDING_MODEL_AUTO_UPDATE=false`. Gerekli model imajın içinde gelir; açılış 21 sn'ye indi.

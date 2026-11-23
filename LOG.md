@@ -744,8 +744,92 @@ ALL_MATCH
 
 ---
 
+## 2026-11-16 — Adım 9.1-9.3: Ollama kurulumu, UFW
+
+- `install.sh` incelendi, çalıştırılmadı. Aynı adımlar elle yapıldı. Komutlar: [docs/09](docs/09-lokal-llm.md).
+
+```
+### STEP 1/2 indirme v0.40.16 10:03:11
+### STEP 2/2 sha256 10:25:08
+ollama-linux-amd64.tar.zst: OK
+### DONE 10:25:11
+```
+
+- UFW açıldı: OpenSSH (her yerden), 11434/tcp (yalnız yerel ağ). `systemd-run` ile 180 sn'lik emniyet kuruldu,
+  yeni SSH girişi çalışınca iptal edildi.
+- Servis ayarları: `OLLAMA_HOST=0.0.0.0:11434`, `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NUM_PARALLEL=1`.
+- GPU algılandı:
+
+```
+msg="inference compute" library=CUDA compute=8.6 description="NVIDIA RTX A4000" driver=13.2 total="15.6 GiB" available="15.4 GiB"
+```
+
+## 2026-11-16 — Adım 9.4: Model indirme
+
+- Sorun: `ollama pull` yavaş hatta takıldı. Ana blob (5.5 GB) tek bağlantılı `curl` ile indirildi; 6 kez kesilip devam etti.
+
+```
+### STEP 1/4 blob indirme (tek bağlantı) 10:58:37
+### RETRY 6 13:25:25 1080 MB
+### STEP 2/4 sha256 + blob klasörüne taşıma 18:00:45
+sha256-370c2879...d39c: OK
+### STEP 3/4 ollama pull (kalan küçük dosyalar) 18:00:58
+gemma4:e4b    dc35e8d9c606    6.6 GB
+### STEP 4/4 open-webui imajı 18:30:42
+### DONE 19:09:10
+```
+
+## 2026-11-23 — Adım 9.4: Model GPU testi
+
+- `POST /api/generate`, `gemma4:e4b` (Q4_K_M, 7.5B), kısa Türkçe soru, `think=false`, iki kez:
+
+| Çalıştırma | Yükleme | Çıktı token | token/sn |
+|---|---|---|---|
+| 1 | 64.7 sn | 142 | 117.5 |
+| 2 | 0.002 sn | 149 | 109.8 |
+
+- `ollama ps`: `100% GPU`, bağlam 4096. `nvidia-smi`: 4757 MiB toplam (llama-server 4732 MiB), 63 °C.
+- API başka makineden de yanıt verdi (`/api/version` → `0.40.16`).
+
+## 2026-11-23 — Adım 9.5: Open WebUI
+
+- 1. deneme (`RAG_EMBEDDING_MODEL_AUTO_UPDATE` yok): 4 dakika sonra hâlâ `unhealthy`, 8080 kapalı.
+  Log, HuggingFace'ten `all-MiniLM-L6-v2` modelinin ONNX/OpenVINO dosyalarının indiğini gösterdi.
+  Gereken `model.safetensors` imajın içinde zaten vardı.
+- Çözüm: container ve yeni oluşturulan boş volume silindi, `-e RAG_EMBEDDING_MODEL_AUTO_UPDATE=false` ile yeniden kuruldu.
+
+```
+health 200, 21s
+```
+
+- 8080/tcp UFW'de yalnız yerel ağa açıldı. Başka makineden `http://<sunucu-ip>:8080/` → 200, sürüm `0.13.3`.
+- Container içinden Ollama erişimi: `/api/tags` → `gemma4:e4b`.
+- Tarayıcı önce "site can't be reached" verdi. Aynı anda aynı makineden `curl` → 200; istek sunucu loguna hiç düşmedi.
+  Sonra açıldı. Kesin neden doğrulanmadı.
+- Yönetici hesabı oluşturuldu, arayüzden sohbet testi yapıldı: yanıt yaklaşık 3 sn (kullanıcı gözlemi).
+- Arayüzdeki kullanım bilgisi (tek yanıt): 141.9 token/sn çıktı (717 token), 1174.8 token/sn girdi (2051 token),
+  model yükleme 4.65 sn, toplam 14.2 sn.
+
+## 2026-11-23 — Adım 9.6: Bağlam uzunluğu 16384
+
+- Neden: arayüzdeki tek yanıtta girdi + çıktı 2768 token tuttu; 4096 bağlam çabuk doluyor.
+
+```bash
+echo 'Environment="OLLAMA_CONTEXT_LENGTH=16384"' | sudo tee -a /etc/systemd/system/ollama.service.d/override.conf
+sudo systemctl daemon-reload
+sudo systemctl restart ollama
+```
+
+| Bağlam | VRAM | token/sn (2 çalıştırma) | GPU |
+|---|---|---|---|
+| 4096 | 4757 MiB | 117.5 / 109.8 | %100 |
+| 16384 | 5157 MiB | 107.1 / 116.4 | %100 |
+
+- Sonuç: ✅ Adım 9 tamamlandı.
+
+---
+
 ## Sıradaki adım
 
-- Lokal LLM ([docs/09](docs/09-lokal-llm.md)).
 - Açık işler: router'da DHCP rezervasyonu (kullanıcı), `eno2` 100 Mb/s bağlantı (kablo/port),
   kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak, SSH şifre girişi kapatılacak.

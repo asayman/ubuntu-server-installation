@@ -27,7 +27,7 @@ Benzer bir sürece ihtiyaç duyan herkes kullanabilir.
 | 6 | [NVIDIA sürücüsü](docs/06-nvidia-surucu.md) | SSH üzerinden | ✅ Tamamlandı |
 | 7 | [Docker + NVIDIA Container Toolkit](docs/07-docker-nvidia.md) | SSH üzerinden | ✅ Tamamlandı |
 | 8 | [Python ortamı, PyTorch, YOLO, EgoBlur](docs/08-pytorch-yolo-egoblur.md) | SSH üzerinden | ✅ |
-| 9 | [Lokal LLM (Ollama vb.)](docs/09-lokal-llm.md) | SSH üzerinden | ⏳ |
+| 9 | [Lokal LLM: Ollama + Open WebUI](docs/09-lokal-llm.md) | SSH üzerinden | ✅ Tamamlandı |
 | 10 | [(Opsiyonel) Ağ dışından erişim: Tailscale](docs/10-uzaktan-erisim-tailscale.md) | SSH üzerinden | ⏸ Opsiyonel |
 
 - Tüm çalıştırılan komutlar ve çıktıları: [LOG.md](LOG.md)
