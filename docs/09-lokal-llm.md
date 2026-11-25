@@ -1,6 +1,6 @@
 # 9. Lokal LLM: Ollama + Open WebUI
 
-> Durum: ✅ Tamamlandı (2026-11-23). Ollama `0.40.16`, `gemma4:e4b` (Q4_K_M), Open WebUI `0.13.3`.
+> Durum: ✅ Tamamlandı (2026-11-23; Ollama yükseltmesi ve 64K bağlam 2026-11-25). Ollama `0.40.18`, `gemma4:e4b` (Q4_K_M), Open WebUI `0.13.3`.
 > Komutlar ve çıktılar [LOG.md](../LOG.md)'de. Örnek ağ: `192.168.1.0/24`; kendi ağınıza göre değiştirin.
 
 ## 9.1 Ollama indirme
@@ -8,7 +8,7 @@
 Yavaş hatta indirme yarıda kalabilir. Dosya devam ettirilebilir biçimde indirilir ve sha256 ile doğrulanır:
 
 ```bash
-V=v0.40.16
+V=v0.40.18
 U=https://github.com/ollama/ollama/releases/download/$V
 mkdir -p ~/tmp/ollama && cd ~/tmp/ollama
 until curl -fL -C - --speed-limit 10000 --speed-time 60 -O $U/ollama-linux-amd64.tar.zst; do sleep 10; done
@@ -65,7 +65,7 @@ WantedBy=default.target
 Environment="OLLAMA_HOST=0.0.0.0:11434"
 Environment="OLLAMA_MAX_LOADED_MODELS=1"
 Environment="OLLAMA_NUM_PARALLEL=1"
-Environment="OLLAMA_CONTEXT_LENGTH=16384"
+Environment="OLLAMA_CONTEXT_LENGTH=65536"
 ```
 
 ```bash
@@ -93,8 +93,52 @@ Digest modelin sürümüne aittir; sonraki sürümlerde değişebilir.
 Ölçüm (RTX A4000, kısa Türkçe soru, `think=false`, bağlam 4096, 2 çalıştırma): **110-118 token/sn**, %100 GPU, 4.7 GB VRAM.
 İlk yükleme 65 sn, model bellekteyken anında.
 
-Varsayılan bağlam (4096) uzun sohbette çabuk dolar. `OLLAMA_CONTEXT_LENGTH=16384` ile VRAM 4757 → 5157 MiB oldu,
-hız aynı kaldı (107-116 token/sn). Yukarıdaki `override.conf` bu ayarı içerir.
+### Bağlam uzunluğu
+
+Varsayılan bağlam (4096) uzun sohbette çabuk dolar. Yukarıdaki `override.conf` 64K kullanır. Modelin sınırı 131072.
+
+Ölçüm (2026-11-25, Ollama `0.40.16`, bağlamın yaklaşık %80'i dolu, boyut başına tek çalıştırma):
+
+| Bağlam | İstem (token) | VRAM | İstemi okuma | Üretim |
+|---|---|---|---|---|
+| 16384 | 12935 | 5159 MiB | 2.4 sn | 167 token/sn |
+| 32768 | 26344 | 5479 MiB | 4.9 sn | 153 token/sn |
+| **65536** | 53789 | 5833 MiB | 11.8 sn | 130 token/sn |
+| 131072 | 108669 | 6969 MiB | 31.3 sn | 99 token/sn |
+
+Her boyutta istemin başlarına gizlenen kod bulundu. Bu basit bir testtir; uzun bağlamda akıl yürütme kalitesini göstermez.
+
+Değiştirmek için:
+
+```bash
+F=/etc/systemd/system/ollama.service.d/override.conf
+sudo cp $F ~/ollama-override.conf.$(date +%F-%H%M%S).bak
+sudo sed -i 's/OLLAMA_CONTEXT_LENGTH=.*"/OLLAMA_CONTEXT_LENGTH=65536"/' $F
+sudo systemctl daemon-reload && sudo systemctl restart ollama
+systemctl show ollama -p Environment
+```
+
+Ayar sunucunun varsayılanıdır. İstemci tarafındaki bağlam ayarı (ör. kod asistanının `contextWindow` değeri) bunu aşmamalı.
+
+### Ollama'yı yükseltme
+
+Yeni modeller daha yeni Ollama isteyebilir (`412` hatası). Yeni arşivi 9.1'deki gibi ayrı bir klasöre indirip doğrulayın,
+eskisini silmeden kenara taşıyın. Yeniden başlatma süren yanıtları keser.
+
+```bash
+B=/usr/local/ollama-backup-0.40.16       # eski sürüm
+sudo systemctl stop ollama
+sudo mkdir $B
+sudo mv /usr/local/bin/ollama $B/ollama
+sudo mv /usr/local/lib/ollama $B/lib-ollama
+zstd -dc ~/tmp/ollama18/ollama-linux-amd64.tar.zst | sudo tar -xf - -C /usr/local
+sudo systemctl start ollama
+ollama --version && ollama list
+sudo journalctl -u ollama --since "-2 min" | grep "inference compute"   # library=CUDA görünmeli
+```
+
+Geri dönüş (denenmedi): servisi durdurun, yeni `bin/ollama` ve `lib/ollama`'yı kaldırın, `$B` içindekileri geri taşıyın, servisi başlatın.
+Yedek 2.4 GB yer tutar; yeni sürümden emin olunca silin.
 
 ## 9.5 Open WebUI
 

@@ -139,3 +139,35 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 ### Open WebUI ilk açılışta dakikalarca `unhealthy`
 - **Neden:** embedding modelinin tüm ONNX/OpenVINO kopyalarını HuggingFace'ten indirir; indirme bitmeden port açılmaz.
 - **Çözüm:** `-e RAG_EMBEDDING_MODEL_AUTO_UPDATE=false`. Gerekli model imajın içinde gelir; açılış 21 sn'ye indi.
+
+### `ollama pull`: `412 ... requires a newer version of Ollama`
+- **Çözüm:** Ollama'yı yükseltin ([docs/09](09-lokal-llm.md)). Önce sürüm notlarını okuyun: model yalnız belirli donanımı destekliyor olabilir.
+
+### `cp -n` ile alınan yedek eski dosyaydı
+- **Belirti:** yedekle yeni dosyanın `diff`'i, değişen satırı "eklenmiş" gösterdi.
+- **Neden:** aynı adda eski bir yedek vardı; `cp -n` üzerine yazmaz ve dosyayı atlar.
+- **Çözüm:** yedek adına tarih ekleyin, değişiklikten önce yedeği `diff` ile doğrulayın.
+
+## Kod asistanı (harness) ve küçük yerel model
+
+DeepSeek Harness (`dsh` `0.2.2-rc.5`) ve `gemma4:e4b` ile görülenler. Ayrıntı: [LOG.md](../LOG.md).
+
+### Araç çağrıları reddediliyor
+- **Belirti:** `missing required property "description"` ve `justification is only valid together with sandbox_permissions`.
+- **Neden:** model zorunlu `description` yerine isteğe bağlı `justification` alanını dolduruyor. İsteme uyarı eklemek güvenilir çözüm olmadı.
+- **Çözüm:** harness ile Ollama arasına argümanları onaran küçük bir yerel proxy. `sandbox_permissions` alanına dokunmamalı;
+  yoksa onay ve sandbox davranışı değişir.
+
+### Model "düzelttim" diyor ama dosya değişmemiş
+- **Neden:** reddedilen düzenlemeyi başarılı sayıyor; bir denemede hiç araç çağırmadan komutu düz metin olarak yazdı.
+- **Çözüm:** modelin sözüne değil `git diff`'e ve kendi çalıştırdığınız teste bakın. Her denemeden önce commit alın.
+
+### Modelin kendi testleri yeterli değil
+- **Belirti:** testleri geçen iki çalıştırmada, 8 kasıtlı hatanın hiçbiri yakalanmadı.
+- **Çözüm:** çalışma klasörü dışında tutulan, modelin görmediği ayrı bir kontrol betiği kullanın.
+
+### Windows'ta her komut için `danger-full-access` onayı isteniyor
+- **Belirti:** `windows-acl workspace grant failed: SetNamedSecurityInfoW failed (Win32 5)`.
+- **Olası neden (doğrulanmadı):** `C:\` altında açılan klasörde kullanıcının yalnız devralınmış `Modify` yetkisi var.
+- **Dikkat:** bu onay komutu sandbox olmadan çalıştırır.
+- **Denenmedi:** çalışma klasörünü kullanıcı profili altında açmak ya da klasörde kendi hesabınıza tam yetki vermek.

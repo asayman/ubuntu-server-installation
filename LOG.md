@@ -827,6 +827,60 @@ sudo systemctl restart ollama
 
 - Sonuç: ✅ Adım 9 tamamlandı.
 
+## 2026-11-25 — Adım 9.7: Bağlam uzunluğu 65536
+
+- Neden: kod asistanı (harness) istemleri birkaç adımda 7-8 bin token'a ulaştı.
+- İstek bazında `num_ctx` ile ölçüldü (bağlamın yaklaşık %80'i dolu, `think=false`, boyut başına tek çalıştırma):
+
+| Bağlam | İstem (token) | VRAM | İstemi okuma | Üretim |
+|---|---|---|---|---|
+| 16384 | 12935 | 5159 MiB | 2.4 sn | 166.6 token/sn |
+| 32768 | 26344 | 5479 MiB | 4.9 sn | 153.3 token/sn |
+| 65536 | 53789 | 5833 MiB | 11.8 sn | 129.8 token/sn |
+| 131072 | 108669 | 6969 MiB | 31.3 sn | 99.0 token/sn |
+
+```bash
+sudo sed -i 's/OLLAMA_CONTEXT_LENGTH=16384/OLLAMA_CONTEXT_LENGTH=65536/' /etc/systemd/system/ollama.service.d/override.conf
+sudo systemctl daemon-reload && sudo systemctl restart ollama
+```
+
+- Hata: yedek `cp -n` ile alındı; aynı adda eski bir dosya olduğu için yeni yedek oluşmadı.
+  Eski yedekte bağlam satırı yok, geri yükleme için kullanılmamalı.
+- Sonuç: ✅ `ollama ps` → bağlam 65536, %100 GPU, 5795 MiB VRAM.
+
+## 2026-11-25 — Adım 9.8: Ollama 0.40.16 → 0.40.18
+
+- Neden: `ollama pull inkling-2-mini:26b-a5b-iq4_NL` → `412: The model you are attempting to pull requires a newer version of Ollama.`
+- Arşiv (1.65 GB) `tmux` içinde indirildi, `sha256sum -c` → `OK`.
+- Eski sürüm `/usr/local/ollama-backup-0.40.16` altına taşındı (2.4 GB), yenisi `/usr/local`'a açıldı, servis başlatıldı.
+- Sonuç: ✅ `0.40.18`, `library=CUDA` (RTX A4000). `gemma4:e4b` yanıt verdi: %100 GPU, 5735 MiB VRAM. Open WebUI container'ı `healthy`.
+- Inkling indirmesi kabul edildi ve başladı (17.6 GB, yaklaşık 4 MB/sn). NVIDIA'da çalışıp çalışmadığı henüz denenmedi:
+  `0.40.17` notları "Apple silicon only" diyor, `0.40.18` notları bu konuda bir şey söylemiyor.
+
+## 2026-11-25 — Kod asistanı denemesi: DeepSeek Harness + gemma4:e4b
+
+- `dsh` `0.2.2-rc.5` (geliştirici önizlemesi). Windows'ta Web UI, ayrıca sunucuda geçici `node:24-bookworm` container'ında headless.
+
+| Test (Web UI) | Sonuç |
+|---|---|
+| 1. Tek satırlık hata | Düzeltildi (kullanıcı bildirdi) |
+| 2. İki dosyaya yayılan iki hata | Düzeltildi, test dosyasına dokunulmadı, kullanıcı `PASS` bildirdi |
+| 3. Kurallardan yeni özellik yazma | Başarısız: proxy'siz 133/243; proxy ile ilk turda hiç araç çağrısı yok, uyarıdan sonra 238/243 ama kendi testleri geçmedi |
+
+- Kök neden: model `description` yerine `justification` gönderiyor, `dsh` çağrıyı reddediyor. Argümanları onaran yerel proxy yazıldı.
+
+| Container karşılaştırması (4'er çalıştırma) | Doğrudan | Proxy |
+|---|---|---|
+| Hata düzeltme: reddedilen/başarısız çağrı | 17 / 35 | 0 / 19 |
+| Hata düzeltme: model testi çalıştırdı | 1 / 4 | 4 / 4 |
+| Test 3: başarısız çağrı | 20 / 41 | 2 / 27 |
+| Test 3: gizli kontrol (243 üzerinden) | 237, 238, 234, 137 | 236, 242, 243, 233 |
+| Test 3: kendi testleri geçti | 1 / 4 | 2 / 4 |
+
+- Proxy'li 4. test 3 çalıştırması 150 sn sınırına takıldı. Örnek sayısı az; gizli kontrol farkı kod kalitesi için kanıt sayılmaz.
+- 243 kontrolün çoğu gidiş-dönüş denemesidir; yüzde yanıltıcıdır. Test 3'ü tam geçen çalıştırma olmadı.
+- Sonuç: ⚠️ Küçük, gözetimli hata düzeltmede kullanılabilir. Kurallardan özellik yazmada güvenilir değil.
+
 ---
 
 ## Sıradaki adım
@@ -835,3 +889,5 @@ sudo systemctl restart ollama
   `eno2` 100 Mb/s: sınır Wi-Fi router'ın portunda, mevcut donanımla artırılamıyor.
 - Karar (2026-11-23, kullanıcı): SSH şifre girişi açık kalacak, adımlardan çıkarıldı.
 - Açık işler: kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak.
+- Açık işler (2026-11-25): Inkling'i A4000'de yükleyip ölçmek (VRAM, CPU/GPU paylaşımı, token/sn); Pi harness'ını iki modelle denemek.
+  Sonra `/usr/local/ollama-backup-0.40.16`, `~/tmp/ollama18` ve kurulum betikleri silinecek.
