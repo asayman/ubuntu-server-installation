@@ -881,24 +881,31 @@ ollama create inkling-pi:32k -f /tmp/Modelfile.inkling-pi
 ## 2026-11-25 — Kod asistanı denemesi: Pi + gemma4:e4b ve inkling-pi:32k
 
 - Pi `1.6.0` (`@earendil-works/pi-coding-agent`), Windows PC'de, sunucudaki Ollama'ya bağlı. Düşünme seviyesi `medium`.
-- Her test ayrı git deposunda, temiz başlangıçtan, iki modele aynı istemle birer kez çalıştırıldı. Sonuçlar ayrıca kontrol betiğiyle doğrulandı.
+- Her test ayrı git deposunda, temiz başlangıçtan, iki modele aynı istemle çalıştırıldı: test 1 ve 2 birer kez, test 3 üçer kez. Sonuçlar ayrıca kontrol betiğiyle doğrulandı.
 
 | Test | gemma4:e4b (64K) | inkling-pi:32k |
 |---|---|---|
 | 1. Tek satırlık hata | Bir yardım mesajıyla düzeltti | Yardımsız geçti, 32 sn |
 | 2. İki dosyaya yayılan iki hata | Yardımsız geçti, 11 sn | Yardımsız geçti, 26 sn |
-| 3. Kurallardan yeni özellik: gizli kontrol | 238/243 | 243/243 |
-| 3. Kendi testleri (sıkı kontrol) | Kaldı, 4 `FAIL` satırı | Geçti |
-| 3. Yakalanan kasıtlı hata | 0/8 | 8/8 |
-| 3. Süre | 80 sn | 268 sn |
-| Ollama'da kaybolan araç çağrısı (3 test) | 1 | 0 |
+| 3. Kurallardan yeni özellik: gizli kontrol (3 çalıştırma, 243 üzerinden) | 238, 238, 238 | 243, 243, 243 |
+| 3. ASCII rakam kuralı | Kaldı, kaldı, kaldı | Kaldı, geçti, geçti |
+| 3. Kendi testleri (sıkı kontrol) | Kaldı (4 `FAIL` satırı), geçti, geçti | Geçti, geçti, geçti |
+| 3. Yakalanan kasıtlı hata (sıkı kural, 8 üzerinden) | Ölçülemedi, 8, 8 | 8, 8, 8 |
+| 3. "Continue" sayısı | 0, 1, 1 | 0, 0, 0 |
+| 3. Çalışma süresi (bekleme hariç, yaklaşık) | 80, 91, 113 sn | 268, 233, 160 sn |
+| 3. Düşünme metni (bin karakter) | 18, 24, 31 | 6, 7, 2 |
+| Ollama'da kaybolan araç çağrısı (5 çalıştırma) | 3 | 0 |
 
 - Gemma test 1: `edit` çağrısı bozuk biçimdeydi. Ollama `gemma4 tool call parsing failed` yazdı, Pi hata göstermeden durdu.
   Çağrının bozuk olduğunu söyleyip devam etmesini isteyen mesajdan sonra düzeltti.
-- Gemma test 3: `FAIL` satırlarına rağmen testlerin geçtiğini bildirdi.
-- İki model de test 3'te `\d` kullandı; kural ASCII rakam istediği hâlde başka rakamları (`"٥s"`) kabul ediyor. Gizli kontrol bunu denemiyor.
+- Gemma test 3: üç çalıştırmada da aynı beş hata. Kod geçerli parçaları seçip gerisini yok sayıyor (`-5m`, `1.5h`, `1h,5m`, `1h foo`, `1h5` kabul ediliyor).
+- Gemma 1. çalıştırma: `FAIL` satırlarına rağmen testlerin geçtiğini bildirdi. Testleri doğru bir kodu da reddettiği için gücü ölçülemedi.
+  İlk kayıttaki 0/8 bu yüzden kaldırıldı.
+- Gemma 2. çalıştırma: kodu düzeltmek yerine doğru bir testin girdisini değiştirdi (`"h 2d"` → `"1h 2d"`).
+- Inkling 3. çalıştırma: `"1ſ"` girdisi `ValueError` yerine `KeyError` veriyor (çok nadir). Kontrollerimize göre tam doğru tek çalıştırma Inkling'in ikincisi.
+- ASCII rakam hatası: `\d` başka rakamları da (`"٥s"`) kabul ediyor. Gizli kontrol bunu denemediği için ayrı bir kontrol eklendi.
 - Inkling bazı dosyaları `bash` içinden Python ile yazdı; Windows'ta satır sonları CRLF oldu.
-- 243 kontrolün çoğu gidiş-dönüş denemesidir; yüzde yanıltıcıdır. Test başına tek çalıştırma var, bağlam boyları da farklı.
+- 243 kontrolün çoğu gidiş-dönüş denemesidir; yüzde yanıltıcıdır. Örnek sayısı az, bağlam boyları da farklı. Pi'nin sıkıştırma ayarları Gemma'nın ilk çalıştırmalarından sonra değişti.
 - Sonuç: ✅ Pi'de kod yazmak için Inkling, hızlı ve gözetimli küçük düzeltmeler için Gemma.
 
 ---
@@ -909,5 +916,4 @@ ollama create inkling-pi:32k -f /tmp/Modelfile.inkling-pi
   `eno2` 100 Mb/s: sınır Wi-Fi router'ın portunda, mevcut donanımla artırılamıyor.
 - Karar (2026-11-23, kullanıcı): SSH şifre girişi açık kalacak, adımlardan çıkarıldı.
 - Açık işler: kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak.
-- Açık işler (2026-11-25): test 3'ü Pi'de her modelle iki kez daha çalıştırmak.
-  Ayrıca `/usr/local/ollama-backup-0.40.16`, `~/tmp/ollama18` ve kurulum betikleri silinecek.
+- Açık işler (2026-11-25): `/usr/local/ollama-backup-0.40.16`, `~/tmp/ollama18` ve kurulum betikleri silinecek.

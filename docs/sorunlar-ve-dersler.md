@@ -156,7 +156,7 @@ Pi `1.6.0` ile `gemma4:e4b` ve `inkling-pi:32k` denemelerinde görülenler. Ayr�
 - **Belirti:** model düzenleyeceğini söylüyor, sonra Pi hata göstermeden yeni girdi bekliyor.
 - **Neden:** Gemma'nın `edit` çağrısı bozuk biçimdeydi; Ollama çağrıyı ayrıştıramadı, Pi'ye hiç araç çağrısı ulaşmadı.
 - **Kontrol:** `sudo journalctl -u ollama | grep "tool call parsing failed"`
-- **Çözüm:** çağrının bozuk olduğunu ve dosyanın değişmediğini yazıp devam etmesini istemek bir denemede yetti.
+- **Çözüm:** çağrının bozuk olduğunu ve dosyanın değişmediğini yazıp devam etmesini istemek bir denemede, yalnız `continue.` yazmak iki denemede yetti. Gemma'da 5 çalıştırmanın 3'ünde görüldü, Inkling'de görülmedi.
 
 ### Model "bitti" diyor ama testler geçmemiş
 - **Neden:** Gemma'nın testi hataları yakalayıp yalnız `FAIL` yazdırıyordu; betik yine de başarıyla bitiyordu.
@@ -164,8 +164,10 @@ Pi `1.6.0` ile `gemma4:e4b` ve `inkling-pi:32k` denemelerinde görülenler. Ayr�
   Çıkış kodu tek başına yetmez; çıktıda `FAIL` satırı olmadığını da kontrol edin.
 
 ### Modelin kendi testleri yeterli değil
-- **Belirti:** Gemma'nın testleri 8 kasıtlı hatanın hiçbirini yakalamadı. Inkling'in testleri 8/8 yakaladı ama ASCII dışı rakam hatasını kaçırdı.
-- **Çözüm:** çalışma klasörü dışında tutulan, modelin görmediği ayrı bir kontrol betiği kullanın. O betiğin de eksikleri olabilir.
+- **Belirti:** 8 kasıtlı hatanın hepsini yakalayan testler bile koddaki gerçek hataları (ASCII dışı rakam, `-5m`) kaçırdı.
+  Bir denemede Gemma, kodu düzeltmek yerine başarısız olan doğru testi değiştirdi.
+- **Çözüm:** çalışma klasörü dışında tutulan, modelin görmediği ayrı bir kontrol betiği kullanın. O betiğin de eksikleri olabilir:
+  bizimki `PASS: ...` satırlarına aldanıp test gücünü yanlış ölçtü. Son satırın tam `PASS` olmasını ve `FAIL` geçmemesini arayın.
 
 ### Büyük model GPU'ya hiç katman koymuyor
 - **Belirti:** Inkling varsayılan ayarda 6.5 token/sn, günlükte `offloaded 0/49 layers to GPU`.
