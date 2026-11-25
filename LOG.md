@@ -908,6 +908,51 @@ ollama create inkling-pi:32k -f /tmp/Modelfile.inkling-pi
 - 243 kontrolün çoğu gidiş-dönüş denemesidir; yüzde yanıltıcıdır. Örnek sayısı az, bağlam boyları da farklı. Pi'nin sıkıştırma ayarları Gemma'nın ilk çalıştırmalarından sonra değişti.
 - Sonuç: ✅ Pi'de kod yazmak için Inkling, hızlı ve gözetimli küçük düzeltmeler için Gemma.
 
+## 2026-11-25 — Adım 9.10: Ternary Bonsai 2.5 27B yükleme, hız testi ve Pi denemesi
+
+- Model: `prism-ml/Ternary-Bonsai-2.5-27B-GGUF`, `Q2_0` dosyası (7.7 GB; görsel projektörle 8.3 GB). Araç, görsel ve düşünme desteği var.
+- Model kartına göre `Q2_0` için llama.cpp `b11556` veya yenisi gerekiyor. Ollama `0.40.18` `b12651` kullanıyor. `PTQ1_0` ve `PQ2_0` dosyaları PrismML'in llama.cpp fork'unu istiyor.
+- ⚠️ Kısa `:Q2_0` etiketi yanlış dosyayı (`PQ2_0`) indiriyor; manifest özetiyle (SHA-256) doğrulandı, indirme durduruldu. Etiket olarak tam dosya adı kullanılmalı:
+
+```bash
+ollama pull hf.co/prism-ml/Ternary-Bonsai-2.5-27B-GGUF:Ternary-Bonsai-2.5-27B-Q2_0.gguf
+```
+
+| Bağlam | İstem (token) | VRAM | İstemi okuma | Üretim |
+|---|---|---|---|---|
+| 32768 | 23-72 | 10443 MiB | ölçülmedi | 38 token/sn |
+| 32768 | 30421 | 10449 MiB | 688 token/sn | 31.3 token/sn |
+| 65536 | 61920 | 12529 MiB | 565 token/sn | 26.6 token/sn |
+
+- 65/65 katman GPU'da. İki uzun istemde de gizlenen kodu buldu. Basit şekillerle görsel testi geçti, API'de araç çağrısı 5/5 doğru. Ölçümler birer çalıştırmadır.
+- Sıcaklık: 64K testinde 93 °C (hedef 90, en yüksek çalışma 98, yavaşlama 100). Donanımsal ısı yavaşlaması görülmedi.
+- Kartın önerdiği örnekleme ayarlarıyla, aynı ağırlıkları kullanan `bonsai-pi:64k` oluşturuldu:
+
+```bash
+printf 'FROM hf.co/prism-ml/Ternary-Bonsai-2.5-27B-GGUF:Ternary-Bonsai-2.5-27B-Q2_0.gguf\nPARAMETER num_ctx 65536\nPARAMETER temperature 1.0\nPARAMETER top_p 0.95\nPARAMETER top_k 20\nPARAMETER min_p 0\n' > /tmp/bonsai.Modelfile
+ollama create bonsai-pi:64k -f /tmp/bonsai.Modelfile
+```
+
+Pi denemesi: Gemma ve Inkling ile aynı depolar, istemler ve kontroller; düşünme seviyesi `medium`. Testleri kullanıcı çalıştırdı.
+
+| Test | bonsai-pi:64k |
+|---|---|
+| 1. Tek satırlık hata | Yardımsız geçti, 20 sn |
+| 2. İki dosyaya yayılan iki hata | Yardımsız geçti, 63 sn |
+| 3. Gizli kontrol (3 çalıştırma, 243 üzerinden) | 243, 243, 243 |
+| 3. ASCII rakam kuralı | Kaldı, kaldı, kaldı |
+| 3. Kendi testleri (sıkı kontrol) | Geçti, geçti, geçti |
+| 3. Yakalanan kasıtlı hata (sıkı kural, 8 üzerinden) | 8, 8, 8 |
+| 3. "Continue" sayısı | 0, 0, 0 |
+| 3. Çalışma süresi (bekleme hariç, yaklaşık) | 131, 142, 240 sn |
+| 3. Düşünme metni (bin karakter) | 3, 3, 8 |
+| Ollama'da kaybolan araç çağrısı (5 çalıştırma) | 0 |
+
+- ASCII kuralı: üç çalıştırmada da `\d` kullandı. `"1ſ"` girdisini 1. ve 3. çalıştırma kabul ediyor, 2. çalıştırma `ValueError` veriyor.
+- 2. çalıştırmada Ctrl+P ile model birkaç saniye değişti ve Bonsai'ye döndü. Sekiz yanıtın hepsi Bonsai'den, sunucu o sürede başka model yüklemedi; çalıştırma geçerli sayıldı.
+- Karşılaştırma sınırları: Bonsai 64K bağlam ve 16384 çıktı sınırıyla, Inkling 32K ve 8192 ile çalıştı. Örnek sayısı az.
+- Sonuç: ✅ Gizli kontrolde Inkling ile aynı puan. Uzun bağlam için Bonsai, kurallara sıkı uyum için Inkling önerilir (Inkling ASCII kuralını 3 çalıştırmanın 2'sinde geçti).
+
 ---
 
 ## Sıradaki adım
@@ -917,3 +962,4 @@ ollama create inkling-pi:32k -f /tmp/Modelfile.inkling-pi
 - Karar (2026-11-23, kullanıcı): SSH şifre girişi açık kalacak, adımlardan çıkarıldı.
 - Açık işler: kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak.
 - Açık işler (2026-11-25): `/usr/local/ollama-backup-0.40.16`, `~/tmp/ollama18` ve kurulum betikleri silinecek.
+- Sonraya bırakılan iş (2026-11-25, kullanıcı): PrismML llama.cpp fork'u ile `PTQ1_0` denemesi.
