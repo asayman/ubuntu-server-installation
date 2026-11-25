@@ -857,29 +857,49 @@ sudo systemctl daemon-reload && sudo systemctl restart ollama
 - Inkling indirmesi kabul edildi ve başladı (17.6 GB, yaklaşık 4 MB/sn). NVIDIA'da çalışıp çalışmadığı henüz denenmedi:
   `0.40.17` notları "Apple silicon only" diyor, `0.40.18` notları bu konuda bir şey söylemiyor.
 
-## 2026-11-25 — Kod asistanı denemesi: DeepSeek Harness + gemma4:e4b
+## 2026-11-25 — Adım 9.9: Inkling 2 Mini yükleme ve hız testi
 
-- `dsh` `0.2.2-rc.5` (geliştirici önizlemesi). Windows'ta Web UI, ayrıca sunucuda geçici `node:24-bookworm` container'ında headless.
+- `inkling-2-mini:26b-a5b-iq4_NL` indirildi (`EXIT=0`, 18 GB; araç, görsel ve düşünme desteği). RTX A4000'de yüklendi ve yanıt verdi.
 
-| Test (Web UI) | Sonuç |
-|---|---|
-| 1. Tek satırlık hata | Düzeltildi (kullanıcı bildirdi) |
-| 2. İki dosyaya yayılan iki hata | Düzeltildi, test dosyasına dokunulmadı, kullanıcı `PASS` bildirdi |
-| 3. Kurallardan yeni özellik yazma | Başarısız: proxy'siz 133/243; proxy ile ilk turda hiç araç çağrısı yok, uyarıdan sonra 238/243 ama kendi testleri geçmedi |
-
-- Kök neden: model `description` yerine `justification` gönderiyor, `dsh` çağrıyı reddediyor. Argümanları onaran yerel proxy yazıldı.
-
-| Container karşılaştırması (4'er çalıştırma) | Doğrudan | Proxy |
+| Bağlam / batch | GPU'daki katman | Üretim |
 |---|---|---|
-| Hata düzeltme: reddedilen/başarısız çağrı | 17 / 35 | 0 / 19 |
-| Hata düzeltme: model testi çalıştırdı | 1 / 4 | 4 / 4 |
-| Test 3: başarısız çağrı | 20 / 41 | 2 / 27 |
-| Test 3: gizli kontrol (243 üzerinden) | 237, 238, 234, 137 | 236, 242, 243, 233 |
-| Test 3: kendi testleri geçti | 1 / 4 | 2 / 4 |
+| 65536 / 512 (varsayılan) | 0/49 | 6.5 token/sn |
+| 65536 / 128 | 49/49 | 13.2 token/sn |
+| 32768 / 512 | 49/49 | 12.8 token/sn |
+| 32768 / 128 | 49/49 | 30.4 token/sn |
 
-- Proxy'li 4. test 3 çalıştırması 150 sn sınırına takıldı. Örnek sayısı az; gizli kontrol farkı kod kalitesi için kanıt sayılmaz.
-- 243 kontrolün çoğu gidiş-dönüş denemesidir; yüzde yanıltıcıdır. Test 3'ü tam geçen çalıştırma olmadı.
-- Sonuç: ⚠️ Küçük, gözetimli hata düzeltmede kullanılabilir. Kurallardan özellik yazmada güvenilir değil.
+- Varsayılan ayarda 13.8 GB'lık GPU hesap tamponu (compute buffer) VRAM'i doldurdu, katmanlara yer kalmadı. Her satır bir veya birkaç kısa ölçümdür.
+- `/v1` üzerinden bağlanan Pi bu iki ayarı göndermiyor; bu yüzden aynı ağırlıkları kullanan türetilmiş model oluşturuldu:
+
+```bash
+printf 'FROM inkling-2-mini:26b-a5b-iq4_NL\nPARAMETER num_ctx 32768\nPARAMETER num_batch 128\n' > /tmp/Modelfile.inkling-pi
+ollama create inkling-pi:32k -f /tmp/Modelfile.inkling-pi
+```
+
+- Sonuç: ✅ `inkling-pi:32k` → 49/49 katman GPU'da, 15187 MiB VRAM. Gemma ile aynı anda yüklenemez.
+
+## 2026-11-25 — Kod asistanı denemesi: Pi + gemma4:e4b ve inkling-pi:32k
+
+- Pi `1.6.0` (`@earendil-works/pi-coding-agent`), Windows PC'de, sunucudaki Ollama'ya bağlı. Düşünme seviyesi `medium`.
+- Her test ayrı git deposunda, temiz başlangıçtan, iki modele aynı istemle birer kez çalıştırıldı. Sonuçlar ayrıca kontrol betiğiyle doğrulandı.
+
+| Test | gemma4:e4b (64K) | inkling-pi:32k |
+|---|---|---|
+| 1. Tek satırlık hata | Bir yardım mesajıyla düzeltti | Yardımsız geçti, 32 sn |
+| 2. İki dosyaya yayılan iki hata | Yardımsız geçti, 11 sn | Yardımsız geçti, 26 sn |
+| 3. Kurallardan yeni özellik: gizli kontrol | 238/243 | 243/243 |
+| 3. Kendi testleri (sıkı kontrol) | Kaldı, 4 `FAIL` satırı | Geçti |
+| 3. Yakalanan kasıtlı hata | 0/8 | 8/8 |
+| 3. Süre | 80 sn | 268 sn |
+| Ollama'da kaybolan araç çağrısı (3 test) | 1 | 0 |
+
+- Gemma test 1: `edit` çağrısı bozuk biçimdeydi. Ollama `gemma4 tool call parsing failed` yazdı, Pi hata göstermeden durdu.
+  Çağrının bozuk olduğunu söyleyip devam etmesini isteyen mesajdan sonra düzeltti.
+- Gemma test 3: `FAIL` satırlarına rağmen testlerin geçtiğini bildirdi.
+- İki model de test 3'te `\d` kullandı; kural ASCII rakam istediği hâlde başka rakamları (`"٥s"`) kabul ediyor. Gizli kontrol bunu denemiyor.
+- Inkling bazı dosyaları `bash` içinden Python ile yazdı; Windows'ta satır sonları CRLF oldu.
+- 243 kontrolün çoğu gidiş-dönüş denemesidir; yüzde yanıltıcıdır. Test başına tek çalıştırma var, bağlam boyları da farklı.
+- Sonuç: ✅ Pi'de kod yazmak için Inkling, hızlı ve gözetimli küçük düzeltmeler için Gemma.
 
 ---
 
@@ -889,5 +909,5 @@ sudo systemctl daemon-reload && sudo systemctl restart ollama
   `eno2` 100 Mb/s: sınır Wi-Fi router'ın portunda, mevcut donanımla artırılamıyor.
 - Karar (2026-11-23, kullanıcı): SSH şifre girişi açık kalacak, adımlardan çıkarıldı.
 - Açık işler: kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak.
-- Açık işler (2026-11-25): Inkling'i A4000'de yükleyip ölçmek (VRAM, CPU/GPU paylaşımı, token/sn); Pi harness'ını iki modelle denemek.
-  Sonra `/usr/local/ollama-backup-0.40.16`, `~/tmp/ollama18` ve kurulum betikleri silinecek.
+- Açık işler (2026-11-25): test 3'ü Pi'de her modelle iki kez daha çalıştırmak.
+  Ayrıca `/usr/local/ollama-backup-0.40.16`, `~/tmp/ollama18` ve kurulum betikleri silinecek.

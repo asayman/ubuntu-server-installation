@@ -148,26 +148,35 @@ Kurulum boyunca karşılaşılan her sorun buraya eklenir. Format:
 - **Neden:** aynı adda eski bir yedek vardı; `cp -n` üzerine yazmaz ve dosyayı atlar.
 - **Çözüm:** yedek adına tarih ekleyin, değişiklikten önce yedeği `diff` ile doğrulayın.
 
-## Kod asistanı (harness) ve küçük yerel model
+## Kod asistanı (Pi) ve yerel modeller
 
-DeepSeek Harness (`dsh` `0.2.2-rc.5`) ve `gemma4:e4b` ile görülenler. Ayrıntı: [LOG.md](../LOG.md).
+Pi `1.6.0` ile `gemma4:e4b` ve `inkling-pi:32k` denemelerinde görülenler. Ayrıntı: [LOG.md](../LOG.md).
 
-### Araç çağrıları reddediliyor
-- **Belirti:** `missing required property "description"` ve `justification is only valid together with sandbox_permissions`.
-- **Neden:** model zorunlu `description` yerine isteğe bağlı `justification` alanını dolduruyor. İsteme uyarı eklemek güvenilir çözüm olmadı.
-- **Çözüm:** harness ile Ollama arasına argümanları onaran küçük bir yerel proxy. `sandbox_permissions` alanına dokunmamalı;
-  yoksa onay ve sandbox davranışı değişir.
+### Pi sessizce duruyor, dosya değişmemiş
+- **Belirti:** model düzenleyeceğini söylüyor, sonra Pi hata göstermeden yeni girdi bekliyor.
+- **Neden:** Gemma'nın `edit` çağrısı bozuk biçimdeydi; Ollama çağrıyı ayrıştıramadı, Pi'ye hiç araç çağrısı ulaşmadı.
+- **Kontrol:** `sudo journalctl -u ollama | grep "tool call parsing failed"`
+- **Çözüm:** çağrının bozuk olduğunu ve dosyanın değişmediğini yazıp devam etmesini istemek bir denemede yetti.
 
-### Model "düzelttim" diyor ama dosya değişmemiş
-- **Neden:** reddedilen düzenlemeyi başarılı sayıyor; bir denemede hiç araç çağırmadan komutu düz metin olarak yazdı.
+### Model "bitti" diyor ama testler geçmemiş
+- **Neden:** Gemma'nın testi hataları yakalayıp yalnız `FAIL` yazdırıyordu; betik yine de başarıyla bitiyordu.
 - **Çözüm:** modelin sözüne değil `git diff`'e ve kendi çalıştırdığınız teste bakın. Her denemeden önce commit alın.
+  Çıkış kodu tek başına yetmez; çıktıda `FAIL` satırı olmadığını da kontrol edin.
 
 ### Modelin kendi testleri yeterli değil
-- **Belirti:** testleri geçen iki çalıştırmada, 8 kasıtlı hatanın hiçbiri yakalanmadı.
-- **Çözüm:** çalışma klasörü dışında tutulan, modelin görmediği ayrı bir kontrol betiği kullanın.
+- **Belirti:** Gemma'nın testleri 8 kasıtlı hatanın hiçbirini yakalamadı. Inkling'in testleri 8/8 yakaladı ama ASCII dışı rakam hatasını kaçırdı.
+- **Çözüm:** çalışma klasörü dışında tutulan, modelin görmediği ayrı bir kontrol betiği kullanın. O betiğin de eksikleri olabilir.
 
-### Windows'ta her komut için `danger-full-access` onayı isteniyor
-- **Belirti:** `windows-acl workspace grant failed: SetNamedSecurityInfoW failed (Win32 5)`.
-- **Olası neden (doğrulanmadı):** `C:\` altında açılan klasörde kullanıcının yalnız devralınmış `Modify` yetkisi var.
-- **Dikkat:** bu onay komutu sandbox olmadan çalıştırır.
-- **Denenmedi:** çalışma klasörünü kullanıcı profili altında açmak ya da klasörde kendi hesabınıza tam yetki vermek.
+### Büyük model GPU'ya hiç katman koymuyor
+- **Belirti:** Inkling varsayılan ayarda 6.5 token/sn, günlükte `offloaded 0/49 layers to GPU`.
+- **Neden:** bağlam 64K ve batch 512 iken 13.8 GB'lık hesap tamponu VRAM'i dolduruyor.
+- **Çözüm:** `num_ctx 32768` ve `num_batch 128` ile türetilmiş model: 49/49 katman, 30.4 token/sn.
+
+### Pi'de komut onayı ve sandbox yok
+- **Dikkat:** modelin komutları kullanıcının tüm yetkileriyle, sorulmadan çalışır.
+- **Çözüm:** Pi'yi yalnız deneme klasöründe, gözetim altında ya da container içinde çalıştırın.
+
+### Windows'ta satır sonları değişiyor
+- **Belirti:** tek satırlık düzeltmede `git diff` bütün dosyayı değişmiş gösteriyor.
+- **Neden:** model dosyayı Windows'ta Python'un metin kipiyle yazınca LF, CRLF'ye dönüyor.
+- **Çözüm:** `git diff --ignore-space-at-eol` ile bakın.
