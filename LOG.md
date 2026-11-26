@@ -1014,3 +1014,62 @@ Pi denemesi: Gemma ve Inkling ile aynı depolar, istemler ve kontroller; düşü
     `open-webui` otomatik başladı; `nvidia-smi` → RTX A4000, sürücü 595.91.07;
     Ollama API tailnet'ten `0.40.18` döndü; bağlantı `direct`.
 - Sonuç: ✅ Adım 10 tamamlandı.
+
+## 2026-11-26 — Kod asistanı denemesi: opencode + gemma4:e4b, bonsai-pi:64k, inkling-pi:32k
+
+- Amaç: Pi ile yapılan testlerin aynısını opencode ile yapmak. Aynı istemler, aynı `baseline` dosyaları, aynı kontroller.
+  İstemler, dosyalar ve kontrol betikleri artık repoda: [bench/](bench/README.md).
+- opencode Windows PC'de npm ile kuruluydu (`1.19.6`). `~/.config/opencode/opencode.jsonc` içine `ollama` sağlayıcısı eklendi
+  (`@ai-sdk/openai-compatible`, `http://gpu-server:11434/v1`), Pi'deki bağlam ve çıktı sınırlarıyla, `reasoningEffort: "medium"`.
+  Eski dosya `opencode.jsonc.pre-ollama.bak` olarak saklandı.
+- Doğrulama: yerel bir kayıt proxy'siyle istek gövdesine bakıldı → `reasoning_effort: "medium"` gidiyor, Ollama `reasoning` alanı döndürüyor.
+  Gemma ile `read` aracı denendi ✅.
+- Çalışma klasörleri: `C:\pi-bench\oc-{gemma,inkling,bonsai}\test{1,2,3,3-run2,3-run3}`, Pi klasörlerinin `baseline` etiketinden klonlandı
+  (dosya ağaçları birebir aynı).
+- ⚠️ opencode ilk açılışta kendiliğinden `2.4.2`'ye güncellendi. Tüm test oturumları `2.4.2` ile yapıldı (yalnız benim ilk denemem `1.19.6`).
+  `2.4.2`'de istek tekrar kontrol edildi: `reasoning_effort` ve ayardaki çıktı sınırı (`max_completion_tokens`) gidiyor.
+  `2.x`'te `opencode -m` yok (`Unrecognized flag: -m`); model TUI içinde seçiliyor. Ayar değişince `opencode reload`.
+- Testleri kullanıcı çalıştırdı. Süre, adım, düşünme ve sıkıştırma bilgisi opencode veritabanından
+  (`~/.local/share/opencode/opencode.db`, `session_v2`, `session_message`, `session_part`) okundu.
+  Kaybolan araç çağrısı için Ollama günlüğüne bakıldı: üç modelde de `tool call parsing failed` yok.
+
+| Test | gemma4:e4b | bonsai-pi:64k | inkling-pi:32k |
+|---|---|---|---|
+| 1. Tek satırlık hata | Geçti, 20 sn | Geçti, 40 sn | Geçti, 124 sn (model yükleme dahil) |
+| 2. İki dosyaya yayılan iki hata | Geçti, 18 sn | Geçti, 94 sn | Geçti, 156 sn |
+| 3. Gizli kontrol (243 üzerinden) | 243, 241, 238 | 243, 243, 243 | 243 (zaman aşımı), 243, 243 |
+| 3. ASCII rakam kuralı | Kaldı, kaldı, kaldı | Geçti, kaldı, geçti | Geçti, geçti, geçti |
+| 3. Kendi testleri (sıkı kontrol) | Kaldı, geçti, kaldı | Geçti, geçti, geçti | Kaldı, geçti, geçti |
+| 3. Yakalanan kasıtlı hata (sıkı kural, 8 üzerinden) | Ölçülemedi, 7, ölçülemedi | 8, 8, 8 | Ölçülemedi, 8, 8 |
+| 3. "Continue" sayısı | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 |
+| 3. Süre (ilk istekten son yanıta) | 148, 91, 65 sn | 276, 524, 704 sn | ~903 sn (durduruldu), 506, 400 sn |
+| 3. Düşünme metni (bin karakter) | 24, 15, 8 | 16, 33, 53 | 25, 9, 10 |
+| 3. Sıkıştırma | 0, 0, 0 | 0, 0, 0 | 2, 0, 0 |
+| Hatalı araç çağrısı (kendisi düzeltti) | 3 | 0 | 2 |
+
+- Gemma test 3:
+  - 1. çalıştırma: kod 243/243, ama testi doğru bir girdiyi (`"1d 1m"`) hatalı sayıyor ve `pytest` içe aktarıyor. Model testi suçlayıp işi bitmiş saydı.
+  - 2. çalıştırma: `"5 m"` (sayıyla birim arasında boşluk) ve `format_duration(True)` kabul ediliyor. Testlerin "her kuralı kapsadığını" söyledi.
+  - 3. çalıştırma: Pi'deki aynı beş hata (`-5m`, `1.5h`, `1h,5m`, `1h foo`, `1h5` kabul). `PASS` yazıyor ama ardından bir `=====` satırı geliyor, sıkı kontrol bu yüzden kaldı.
+  - Hatalı çağrılar: yola fazladan ters tırnak (`calc.py\``), iki başarısız `edit`; hepsini kendisi düzeltti.
+- Bonsai: sıra test 3, 3-run2, 3-run3, test 1, test 2. Her test 3 çalıştırmasında ilk adımda 4-5.5 dakika düşündü.
+  3. çalıştırma 10 dakika sınırını aştı (704 sn), kullanıcı durdurmadı; kontrollerin hepsini geçti ve `"1ſ"` girdisini de reddediyor.
+  En büyük istek ~19.8K token, sıkıştırma yok. GPU 90-93 °C.
+- Inkling test 3, 1. çalıştırma (varsayılan sıkıştırma ayarı, 11:46): 11:52 ve 11:58'de, ~16.7K token'da iki kez sıkıştırdı.
+  Arada ~6 dakika düşünüp yalnız bir `python -c` çalıştırdı, testini hiç çalıştırmadı. 10 dakika geçtiği için ~12:01'de durduruldu → **zaman aşımı**.
+  Bıraktığı `duration.py` doğru (243/243, ASCII geçti), `test_duration.py` 10^9 için yanlış beklenen değer içeriyor (`115740d...`, doğrusu `11574d1h46m40s`).
+  GPU bu sırada 92-93 °C, `nvidia-smi` yazılımsal ısı yavaşlaması (`0x20`) gösterdi.
+- Neden (opencode belgeleri, `compaction`): `buffer` varsayılanı pencerenin %15'i ama **en az 16K token** boş bırakılıyor; 32K pencerede sıkıştırma ~16.7K'da başlıyor.
+  Sıkıştırmadan sonra son ~15K token (`keep.tokens 15000`) olduğu gibi tutuluyor, ~11K'lık sistem istemiyle pencere hemen yine doluyor.
+- Deneme 1: Inkling'in çıktı sınırı 8192 → 4096 (`opencode.jsonc.pre-inkling4k.bak`). 2. çalıştırma (12:06) yine ~16.6K'da iki kez sıkıştırdı → işe yaramadı,
+  çalıştırma **geçersiz** sayıldı ve klasör `baseline`'a döndürüldü (dosyalar `C:\pi-bench\oc-inkling\_invalid\test3-run2-buf16k`).
+- Deneme 2: ayara `"compaction": { "buffer": 6144, "keep": { "tokens": 4000 } }` eklendi (`opencode.jsonc.pre-compaction.bak`), `opencode reload`.
+  2. çalıştırma (12:17, 506 sn) ve 3. çalıştırma (12:36, 400 sn) hiç sıkıştırmadan, en çok ~21K token ile bitti; ikisi de tüm kontrolleri geçti.
+  Gemma ve Bonsai 64K pencerede ~49K'ya kadar sıkıştırmazdı; en çok ~31K ve ~20K kullandılar, sonuçları bu ayardan etkilenmez.
+- Inkling 2. çalıştırmada `test_duration.py`'yi `Remove-Item` ile silip yeniden yazdı ve bunu son mesajında söyledi. opencode bunu sormadan yaptırıyor.
+- Pi ile karşılaştırma (ayrıntı: [bench/README.md](bench/README.md)):
+  - Doğruluk aynı seviyede. Gemma Pi'de 5 çalıştırmada 3 araç çağrısı kaybetmişti, opencode'da kayıp yok ve hiç yardım gerekmedi.
+  - Inkling ve Bonsai opencode'da daha yavaş; Bonsai 5-11 kat fazla düşündü ama ASCII kuralını 3'te 2 geçti (Pi'de 0).
+  - opencode'un sistem istemi büyük (~22-23K karakter, 10-12 araç); 32K pencerede sıkıştırma ayarı şart.
+- Sonuç: ✅ Testler tamamlandı. Model sıralaması Pi'dekiyle aynı: kod için Inkling, uzun bağlam için Bonsai, hızlı küçük düzeltmeler için Gemma.
+  Inkling'in opencode test 3'ünde 2 geçerli çalıştırma var, ayarı (çıktı 4096, sıkıştırma) Pi'dekinden farklı.

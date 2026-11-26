@@ -1,0 +1,16 @@
+Create duration.py with two functions, using only the Python standard library.
+
+parse_duration(text) returns the total number of seconds as an int.
+- Units: d (days), h (hours), m (minutes), s (seconds). Case-insensitive.
+- Each part is ASCII digits immediately followed by a unit: "45s", "1h30m", "90m".
+- Units must be in the order d, h, m, s. Each unit at most once. Any may be omitted.
+- Whitespace is allowed before, after and between parts ("2d 3h"), but not between a number and its unit.
+- Leading zeros and zero values are allowed ("007s", "0s").
+- If text is not a str, raise TypeError. For any other invalid input, including empty or whitespace-only text, raise ValueError.
+
+format_duration(seconds) returns the shortest form using d, h, m, s without spaces, skipping zero units: 5400 -> "1h30m", 93784 -> "1d2h3m4s". 0 -> "0s". Days are not limited.
+- If seconds is not an int, or is a bool, raise TypeError. If negative, raise ValueError.
+
+Also create test_duration.py: a plain script using only assert and try/except, no pytest or unittest. It must cover every rule above, including the error cases, and print PASS at the end.
+Then run: python test_duration.py
+Keep going until it prints PASS. Do not change any other file.

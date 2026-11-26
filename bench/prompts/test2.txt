@@ -1,0 +1,4 @@
+test_invoice.py fails. discount is a percentage (10 means 10%).
+Read parser.py, invoice.py and test_invoice.py. Find and fix all bugs.
+Do not modify test_invoice.py. Then run: python test_invoice.py
+Keep going until it prints PASS.

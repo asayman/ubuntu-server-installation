@@ -182,3 +182,22 @@ Pi `1.6.0` ile `gemma4:e4b` ve `inkling-pi:32k` denemelerinde görülenler. Ayr�
 - **Belirti:** tek satırlık düzeltmede `git diff` bütün dosyayı değişmiş gösteriyor.
 - **Neden:** model dosyayı Windows'ta Python'un metin kipiyle yazınca LF, CRLF'ye dönüyor.
 - **Çözüm:** `git diff --ignore-space-at-eol` ile bakın.
+
+## Kod asistanı (opencode) ve yerel modeller
+
+opencode `2.4.2` ile aynı testlerde görülenler. Ayrıntı: [LOG.md](../LOG.md), [bench/](../bench/README.md).
+
+### Küçük bağlamda model sürekli sıkıştırıp ilerlemiyor
+- **Belirti:** 32K bağlamlı Inkling, ~16.7K token'da sıkıştırıyor, dosyaları unutup dakikalarca baştan düşünüyor, birkaç dakika sonra yine sıkıştırıyor.
+- **Neden:** `compaction.buffer` varsayılanı en az 16K token boş alan bırakıyor; sıkıştırmadan sonra da ~15K token (`keep.tokens`) korunuyor.
+  Çıktı sınırını düşürmek bunu değiştirmiyor.
+- **Çözüm:** `"compaction": { "buffer": 6144, "keep": { "tokens": 4000 } }`, ardından `opencode reload`. Sonra iki çalıştırma hiç sıkıştırmadan bitti.
+
+### opencode kendiliğinden güncellendi, komutlar değişti
+- **Belirti:** `opencode -m ...` → `Unrecognized flag: -m`; `opencode models ollama` → `Unexpected positional argument`.
+- **Neden:** ilk açılışta `1.19.6`'dan `2.4.2`'ye güncellendi; `2.x` arka planda bir servis kullanıyor ve model TUI içinde seçiliyor.
+- **Çözüm:** karşılaştırmalı testlerde sürümü her oturumda kaydedin (`opencode --version`, veritabanında `session_v2.version`). Ayar değişince `opencode reload`.
+
+### Model dosyaları sormadan siliyor
+- **Dikkat:** varsayılan ayarda opencode da komutları sormadan çalıştırıyor; Inkling bir denemede `Remove-Item` ile dosya sildi.
+- **Çözüm:** yalnız deneme klasöründe ve gözetim altında çalıştırın; her denemeden önce commit alın.

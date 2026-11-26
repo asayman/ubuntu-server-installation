@@ -33,6 +33,25 @@ Benzer bir sürece ihtiyaç duyan herkes kullanabilir.
 - Tüm çalıştırılan komutlar ve çıktıları: [LOG.md](LOG.md)
 - Karşılaşılan sorunlar, doğrular/yanlışlar: [docs/sorunlar-ve-dersler.md](docs/sorunlar-ve-dersler.md)
 
+## Kod asistanı testleri: Pi ve opencode
+
+Sunucudaki üç yerel model (`gemma4:e4b`, `inkling-pi:32k`, `bonsai-pi:64k`), Windows PC'deki iki kod asistanıyla
+([Pi](https://pi.dev) `1.6.0` ve [opencode](https://opencode.ai) `2.4.2`) aynı üç görevde denendi:
+tek satırlık hata, iki dosyaya yayılmış hata ve kurallardan yeni özellik (3 çalıştırma).
+Sonuçlar modelin sözüyle değil, `git diff` ve modelin görmediği kontrol betikleriyle değerlendirildi.
+
+| Test 3: kurallardan yeni özellik (3 çalıştırma) | Pi | opencode |
+|---|---|---|
+| **inkling-pi:32k** | 243/243 ×3, ASCII kuralı 2/3 | 1. çalıştırma zaman aşımı (sıkıştırma ayarı), sonra 243/243 ×2, tam temiz |
+| **bonsai-pi:64k** | 243/243 ×3, ASCII kuralı 0/3 | 243/243 ×3, ASCII kuralı 2/3, 2-4 kat yavaş |
+| **gemma4:e4b** | 238/243 ×3, araç çağrısı kayboldu | 243, 241, 238; kendi testleri zayıf |
+
+Test 1 ve 2'yi her harness'ta her model geçti (Pi'de Gemma test 1'de bir yardım mesajıyla).
+Kısaca: kod yazmak için **Inkling**, uzun bağlam için **Bonsai**, hızlı ve gözetimli küçük düzeltmeler için **Gemma**.
+
+- İstemler, başlangıç dosyaları, kontrol betikleri, tüm tablolar ve harness ayarları: [bench/](bench/README.md)
+- Komutlar ve ayrıntılar: [LOG.md](LOG.md)
+
 ## Bu repoyu kendi kurulumunuzda kullanırken
 
 - Dokümanlarda geçen `192.168.1.50`, `gpu-server`, `kullanici` gibi değerler **örnektir**.
