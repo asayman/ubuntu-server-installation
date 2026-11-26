@@ -1018,7 +1018,7 @@ Pi denemesi: Gemma ve Inkling ile aynı depolar, istemler ve kontroller; düşü
 ## 2026-11-26 — Kod asistanı denemesi: opencode + gemma4:e4b, bonsai-pi:64k, inkling-pi:32k
 
 - Amaç: Pi ile yapılan testlerin aynısını opencode ile yapmak. Aynı istemler, aynı `baseline` dosyaları, aynı kontroller.
-  İstemler, dosyalar ve kontrol betikleri artık repoda: [bench/](bench/README.md).
+  İstemler, dosyalar ve kontrol betikleri artık repoda: [bench/](bench/README.tr.md).
 - opencode Windows PC'de npm ile kuruluydu (`1.19.6`). `~/.config/opencode/opencode.jsonc` içine `ollama` sağlayıcısı eklendi
   (`@ai-sdk/openai-compatible`, `http://gpu-server:11434/v1`), Pi'deki bağlam ve çıktı sınırlarıyla, `reasoningEffort: "medium"`.
   Eski dosya `opencode.jsonc.pre-ollama.bak` olarak saklandı.
@@ -1067,7 +1067,7 @@ Pi denemesi: Gemma ve Inkling ile aynı depolar, istemler ve kontroller; düşü
   2. çalıştırma (12:17, 506 sn) ve 3. çalıştırma (12:36, 400 sn) hiç sıkıştırmadan, en çok ~21K token ile bitti; ikisi de tüm kontrolleri geçti.
   Gemma ve Bonsai 64K pencerede ~49K'ya kadar sıkıştırmazdı; en çok ~31K ve ~20K kullandılar, sonuçları bu ayardan etkilenmez.
 - Inkling 2. çalıştırmada `test_duration.py`'yi `Remove-Item` ile silip yeniden yazdı ve bunu son mesajında söyledi. opencode bunu sormadan yaptırıyor.
-- Pi ile karşılaştırma (ayrıntı: [bench/README.md](bench/README.md)):
+- Pi ile karşılaştırma (ayrıntı: [bench/README.tr.md](bench/README.tr.md)):
   - Doğruluk aynı seviyede. Gemma Pi'de 5 çalıştırmada 3 araç çağrısı kaybetmişti, opencode'da kayıp yok ve hiç yardım gerekmedi.
   - Inkling ve Bonsai opencode'da daha yavaş; Bonsai 5-11 kat fazla düşündü ama ASCII kuralını 3'te 2 geçti (Pi'de 0).
   - opencode'un sistem istemi büyük (~22-23K karakter, 10-12 araç); 32K pencerede sıkıştırma ayarı şart.

@@ -1,70 +1,72 @@
-# Kod asistanı testleri: Pi ve opencode, üç yerel model
+# Coding assistant tests: Pi and opencode, three local models
 
-Sunucudaki Ollama'da çalışan üç modelin, Windows PC'deki iki kod asistanıyla (harness) aynı üç görevi nasıl yaptığının kaydı.
-Testleri kullanıcı elle çalıştırdı; sonuçlar modelin sözüne göre değil, `git diff` ve aşağıdaki kontrol betikleriyle değerlendirildi.
+**English** | [Türkçe](README.tr.md)
 
-- Tarihler: Pi 2026-11-25, opencode 2026-11-26. Komutlar ve ayrıntılar: [LOG.md](../LOG.md).
-- Bu klasör: [istemler](prompts/), [başlangıç dosyaları](tests/), [kontrol betikleri](checks/).
+A record of how three models running in Ollama on the server handled the same three tasks in two coding assistants (harnesses) on a Windows PC.
+The user ran the tests by hand. Results were judged by `git diff` and the check scripts below, not by what the model claimed.
 
-## Modeller ve harness'lar
+- Dates: Pi 2026-11-25, opencode 2026-11-26. Commands and details (Turkish): [LOG.md](../LOG.md).
+- In this folder: [prompts](prompts/), [starting files](tests/), [check scripts](checks/).
 
-| Model (Ollama) | Bağlam | Çıktı sınırı | Not |
+## Models and harnesses
+
+| Model (Ollama) | Context | Output limit | Note |
 |---|---|---|---|
-| `gemma4:e4b` | 64K | 8192 | Küçük, hızlı |
-| `inkling-pi:32k` | 32K | 8192 (opencode test 3 çalıştırma 2-3: 4096) | `inkling-2-mini:26b-a5b-iq4_NL`'den türetildi, `num_ctx 32768`, `num_batch 128` |
-| `bonsai-pi:64k` | 64K | 16384 | Ternary Bonsai 2.5 27B `Q2_0`, model kartının örnekleme ayarları |
+| `gemma4:e4b` | 64K | 8192 | Small, fast |
+| `inkling-pi:32k` | 32K | 8192 (opencode test 3 runs 2-3: 4096) | Derived from `inkling-2-mini:26b-a5b-iq4_NL`, `num_ctx 32768`, `num_batch 128` |
+| `bonsai-pi:64k` | 64K | 16384 | Ternary Bonsai 2.5 27B `Q2_0`, sampling settings from the model card |
 
 | | Pi | opencode |
 |---|---|---|
-| Sürüm | `1.6.0` (`@earendil-works/pi-coding-agent`) | `2.4.2` (ilk açılışta `1.19.6`'dan kendiliğinden güncellendi) |
-| Bağlantı | `openai-completions`, `http://<sunucu>:11434/v1` | `@ai-sdk/openai-compatible`, aynı adres |
-| Düşünme | `--thinking medium` | model ayarında `reasoningEffort: "medium"` (istekte `reasoning_effort` gittiği doğrulandı) |
-| Komut onayı / sandbox | Yok | Varsayılan ayarda sormuyor, sandbox yok |
-| Sıkıştırma (compaction) | `reserveTokens 10000`, `keepRecentTokens 8000` | Varsayılan: en az 16K boş alan, sonrasında 15K token korunur. Inkling için `buffer 6144`, `keep.tokens 4000` yapıldı |
+| Version | `1.6.0` (`@earendil-works/pi-coding-agent`) | `2.4.2` (updated itself from `1.19.6` on first launch) |
+| Connection | `openai-completions`, `http://<server>:11434/v1` | `@ai-sdk/openai-compatible`, same address |
+| Thinking | `--thinking medium` | `reasoningEffort: "medium"` in the model settings (verified that `reasoning_effort` is sent) |
+| Command approval / sandbox | None | Does not ask with default settings, no sandbox |
+| Compaction | `reserveTokens 10000`, `keepRecentTokens 8000` | Default: at least 16K kept free, 15K tokens kept afterwards. Set to `buffer 6144`, `keep.tokens 4000` for Inkling |
 
-## Testler
+## Tests
 
-Her çalıştırma ayrı bir git deposunda, `baseline` etiketli temiz başlangıçtan ve yeni bir oturumla yapıldı.
+Each run used its own git repo, started from a clean state tagged `baseline`, in a new session.
 
-| # | Görev | Ölçtüğü şey | Dosyalar | İstem |
+| # | Task | What it measures | Files | Prompt |
 |---|---|---|---|---|
-| 1 | Tek satırlık hata (`len(xs) + 1`) | Basit okuma, düzenleme, test çalıştırma | [tests/test1](tests/test1) | [prompts/test1.txt](prompts/test1.txt) |
-| 2 | İki dosyaya yayılmış iki hata (kuruşlar kayboluyor, indirim yüzde değil tutar olarak düşülüyor) | Belirtiyle nedeni farklı dosyada bulmak, teste dokunmamak | [tests/test2](tests/test2) | [prompts/test2.txt](prompts/test2.txt) |
-| 3 | Kurallardan yeni özellik: `parse_duration` / `format_duration` ve kendi testleri | Kurallara tam uyum, test yazma, yalan başarı bildirmemek | [tests/test3](tests/test3) | [prompts/test3.txt](prompts/test3.txt) |
+| 1 | One-line bug (`len(xs) + 1`) | Simple read, edit, run the test | [tests/test1](tests/test1) | [prompts/test1.txt](prompts/test1.txt) |
+| 2 | Two bugs in two files (cents are dropped, the discount is subtracted as an amount instead of a percentage) | Finding the cause in a different file from the symptom, leaving the test alone | [tests/test2](tests/test2) | [prompts/test2.txt](prompts/test2.txt) |
+| 3 | New feature from a spec: `parse_duration` / `format_duration` plus its own tests | Following every rule, writing tests, not claiming false success | [tests/test3](tests/test3) | [prompts/test3.txt](prompts/test3.txt) |
 
-Test 1 ve 2 her modelde birer kez, test 3 üçer kez çalıştırıldı.
+Tests 1 and 2 ran once per model, test 3 three times.
 
-**Kurallar:** kullanıcı yalnızca `Continue.` yazabilir (en çok 3 kez), 10 dakikada durdurulur. Kontroller modelin göremediği bir klasörde tutuldu.
+**Rules:** the user may only type `Continue.` (at most 3 times), and a run is stopped after 10 minutes. The checks were kept in a folder the model could not see.
 
-### Kontroller
+### Checks
 
-> **Uyarı:** kontrol betikleri modelin yazdığı kodu sizin makinenizde, sandbox olmadan çalıştırır. Önce kodu okuyun.
+> **Warning:** the check scripts run the model's code on your machine, without a sandbox. Read the code first.
 
-| Betik | Ne yapar |
+| Script | What it does |
 |---|---|
-| [checks/check.py](checks/check.py) `<klasör> <1\|2\|3>` | Değişen dosyalar izin verilenlerin dışına çıktı mı (`SCOPE`). Test 1-2: `baseline`'daki **orijinal** test dosyasını çalıştırır, böylece değiştirilmiş bir test geçemez. Test 3: aşağıdaki gizli kontrolü ve sıkı test kuralını çalıştırır. |
-| [checks/hidden_check.py](checks/hidden_check.py) `<klasör>` | 243 davranış kontrolü (geçerli/geçersiz girdiler ve 205 gidiş-dönüş). Modelin testlerini doğru bir koda ve 8 kasıtlı hatalı koda (mutant) karşı çalıştırır. |
-| [checks/strict_strength.py](checks/strict_strength.py) `<klasör>` | Mutant puanı, sıkı kuralla: çıkış kodu 0, hiçbir satırda `FAIL` yok, son satır tam `PASS`. (Gevşek kural `PASS: ...` yazan betiklere aldanıyor.) |
-| [checks/ascii_check.py](checks/ascii_check.py) `<klasör>` | "ASCII rakam" kuralı: `"٥s"`, `"５m"` gibi girdiler `ValueError` vermeli. Gizli kontrolde yoktu, sonradan eklendi. |
+| [checks/check.py](checks/check.py) `<folder> <1\|2\|3>` | Did the changed files stay within the allowed ones (`SCOPE`)? Tests 1-2: runs the **original** test file from `baseline`, so an edited test cannot pass. Test 3: runs the hidden check below and the strict test rule. |
+| [checks/hidden_check.py](checks/hidden_check.py) `<folder>` | 243 behavior checks (valid and invalid inputs plus 205 round trips). Runs the model's tests against a correct implementation and 8 deliberately broken ones (mutants). |
+| [checks/strict_strength.py](checks/strict_strength.py) `<folder>` | Mutant score with a strict rule: exit code 0, no line mentions `FAIL`, last line is exactly `PASS`. (The loose rule is fooled by scripts that print `PASS: ...`.) |
+| [checks/ascii_check.py](checks/ascii_check.py) `<folder>` | The "ASCII digits" rule: inputs such as `"٥s"` and `"５m"` must raise `ValueError`. Not in the hidden check; added later. |
 
-243 kontrolün çoğu gidiş-dönüş denemesi olduğu için puan yüzdesi yanıltıcıdır; asıl bakılacak şey kaçırılan girdilerdir.
+Most of the 243 checks are round trips, so the percentage is misleading; the inputs that were missed are what matter.
 
-### Kendiniz çalıştırmak için
+### Running it yourself
 
 ```powershell
-# her çalıştırma için ayrı klasör
+# a separate folder for each run
 $ws = "C:\bench\gemma\test3"
 New-Item -ItemType Directory -Force $ws | Out-Null
 Copy-Item -Recurse bench\tests\test3\* $ws; Copy-Item bench\tests\test3\.gitignore $ws
 cd $ws; git init -q; git add -A; git commit -qm baseline; git tag baseline
-# harness'ı bu klasörde açın, prompts\test3.txt içeriğini yapıştırın; bitince:
+# open the harness in this folder, paste the content of prompts\test3.txt; when it is done:
 git diff baseline; git status --short
 python <repo>\bench\checks\check.py . 3
 python <repo>\bench\checks\strict_strength.py .
 python <repo>\bench\checks\ascii_check.py .
 ```
 
-opencode ayarı (`~/.config/opencode/opencode.jsonc`, kısaltılmış):
+opencode settings (`~/.config/opencode/opencode.jsonc`, shortened):
 
 ```jsonc
 {
@@ -85,71 +87,71 @@ opencode ayarı (`~/.config/opencode/opencode.jsonc`, kısaltılmış):
 }
 ```
 
-opencode 2.x'te `-m` bayrağı yok; model TUI içinde (`ctrl+p`) seçilir. Ayar değişince `opencode reload` gerekir.
+opencode 2.x has no `-m` flag; the model is picked inside the TUI (`ctrl+p`). After changing the settings, run `opencode reload`.
 
-## Sonuçlar
+## Results
 
-Süreler: Pi'de bekleme hariç yaklaşık çalışma süresi, opencode'da ilk istekten son yanıta kadar (opencode veritabanından).
-Düşünme: bin karakter. Test 3'te üç değer üç çalıştırmayı gösterir.
+Times: in Pi, approximate working time excluding waits; in opencode, from the first request to the last reply (from the opencode database).
+Thinking: thousands of characters. In test 3, the three values are the three runs.
 
 ### Pi
 
 | | gemma4:e4b | inkling-pi:32k | bonsai-pi:64k |
 |---|---|---|---|
-| Test 1 | Bir yardım mesajıyla düzeltti | Geçti, 32 sn | Geçti, 20 sn |
-| Test 2 | Geçti, 11 sn | Geçti, 26 sn | Geçti, 63 sn |
-| Test 3 gizli kontrol (/243) | 238, 238, 238 | 243, 243, 243 | 243, 243, 243 |
-| Test 3 ASCII kuralı | ✗ ✗ ✗ | ✗ ✓ ✓ | ✗ ✗ ✗ |
-| Test 3 kendi testleri (sıkı) | ✗ ✓ ✓ | ✓ ✓ ✓ | ✓ ✓ ✓ |
-| Test 3 mutant (sıkı, /8) | ölçülemedi, 8, 8 | 8, 8, 8 | 8, 8, 8 |
+| Test 1 | Fixed it after one help message | Passed, 32 s | Passed, 20 s |
+| Test 2 | Passed, 11 s | Passed, 26 s | Passed, 63 s |
+| Test 3 hidden check (/243) | 238, 238, 238 | 243, 243, 243 | 243, 243, 243 |
+| Test 3 ASCII rule | ✗ ✗ ✗ | ✗ ✓ ✓ | ✗ ✗ ✗ |
+| Test 3 own tests (strict) | ✗ ✓ ✓ | ✓ ✓ ✓ | ✓ ✓ ✓ |
+| Test 3 mutants (strict, /8) | not measurable, 8, 8 | 8, 8, 8 | 8, 8, 8 |
 | Test 3 `Continue.` | 0, 1, 1 | 0, 0, 0 | 0, 0, 0 |
-| Test 3 süre (sn) | 80, 91, 113 | 268, 233, 160 | 131, 142, 240 |
-| Test 3 düşünme | 18, 24, 31 | 6, 7, 2 | 3, 3, 8 |
-| Kaybolan araç çağrısı (5 çalıştırma) | 3 | 0 | 0 |
+| Test 3 time (s) | 80, 91, 113 | 268, 233, 160 | 131, 142, 240 |
+| Test 3 thinking | 18, 24, 31 | 6, 7, 2 | 3, 3, 8 |
+| Lost tool calls (5 runs) | 3 | 0 | 0 |
 
 ### opencode
 
 | | gemma4:e4b | inkling-pi:32k | bonsai-pi:64k |
 |---|---|---|---|
-| Test 1 | Geçti, 20 sn | Geçti, 124 sn (model yükleme dahil) | Geçti, 40 sn |
-| Test 2 | Geçti, 18 sn | Geçti, 156 sn | Geçti, 94 sn |
-| Test 3 gizli kontrol (/243) | 243, 241, 238 | 243 (zaman aşımı), 243, 243 | 243, 243, 243 |
-| Test 3 ASCII kuralı | ✗ ✗ ✗ | ✓ ✓ ✓ | ✓ ✗ ✓ |
-| Test 3 kendi testleri (sıkı) | ✗ ✓ ✗ | ✗ ✓ ✓ | ✓ ✓ ✓ |
-| Test 3 mutant (sıkı, /8) | ölçülemedi, 7, ölçülemedi | ölçülemedi, 8, 8 | 8, 8, 8 |
+| Test 1 | Passed, 20 s | Passed, 124 s (includes model load) | Passed, 40 s |
+| Test 2 | Passed, 18 s | Passed, 156 s | Passed, 94 s |
+| Test 3 hidden check (/243) | 243, 241, 238 | 243 (timeout), 243, 243 | 243, 243, 243 |
+| Test 3 ASCII rule | ✗ ✗ ✗ | ✓ ✓ ✓ | ✓ ✗ ✓ |
+| Test 3 own tests (strict) | ✗ ✓ ✗ | ✗ ✓ ✓ | ✓ ✓ ✓ |
+| Test 3 mutants (strict, /8) | not measurable, 7, not measurable | not measurable, 8, 8 | 8, 8, 8 |
 | Test 3 `Continue.` | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 |
-| Test 3 süre (sn) | 148, 91, 65 | durduruldu (~15 dk), 506, 400 | 276, 524, 704 |
-| Test 3 düşünme | 24, 15, 8 | 25, 9, 10 | 16, 33, 53 |
-| Test 3 sıkıştırma | 0, 0, 0 | 2, 0, 0 | 0, 0, 0 |
-| Kaybolan araç çağrısı (5 çalıştırma) | 0 (3 hatalı çağrı, kendisi düzeltti) | 0 (2 hatalı çağrı, kendisi düzeltti) | 0 |
+| Test 3 time (s) | 148, 91, 65 | stopped (~15 min), 506, 400 | 276, 524, 704 |
+| Test 3 thinking | 24, 15, 8 | 25, 9, 10 | 16, 33, 53 |
+| Test 3 compactions | 0, 0, 0 | 2, 0, 0 | 0, 0, 0 |
+| Lost tool calls (5 runs) | 0 (3 bad calls, fixed by itself) | 0 (2 bad calls, fixed by itself) | 0 |
 
-opencode notları:
-- **Gemma test 3:** 1. çalıştırmanın testi doğru bir girdiyi (`"1d 1m"`) hatalı sayıyor ve `pytest` içe aktarıyor; model testi suçlayıp işi bitmiş saydı.
-  2. çalıştırma `"5 m"` ve `format_duration(True)` kabul ediyor. 3. çalıştırma Pi'deki aynı beş hatayı yapıyor (`-5m`, `1.5h`, `1h,5m`, `1h foo`, `1h5` kabul).
-  Ayrıca `PASS`'tan sonra bir satır daha yazdırıyor.
-- **Inkling test 3, 1. çalıştırma:** varsayılan sıkıştırma ayarıyla 32K pencerede ~16.7K token'da sıkıştırdı, iki kez. Her seferinde dosyaları unutup baştan düşündü, testini hiç çalıştıramadan 10 dakikayı geçti ve durduruldu.
-  Bıraktığı `duration.py` doğruydu (243/243, ASCII geçti), test dosyası yanlış bir beklenen değer içeriyordu.
-  Çıktı sınırını 4096'ya düşürmek tek başına işe yaramadı (yine ~16.6K'da sıkıştırdı, geçersiz sayıldı). `compaction.buffer 6144` ve `keep.tokens 4000` ile 2. ve 3. çalıştırma hiç sıkıştırmadan tam temiz bitti.
-- **Bonsai test 3:** her çalıştırmada ilk adımda 4-5.5 dakika düşündü. 3. çalıştırma 10 dakika sınırını aştı (kullanıcı durdurmadı) ama sonuç en temiz olanlardan: `"1ſ"` girdisini de reddediyor.
-- Gemma ve Bonsai (64K) en çok ~31K ve ~20K token kullandı; sıkıştırmaya hiç yaklaşmadılar, yeni sıkıştırma ayarı onların sonuçlarını etkilemez.
+opencode notes:
+- **Gemma test 3:** run 1's test treats a valid input (`"1d 1m"`) as an error and imports `pytest`; the model blamed the test and called the job done.
+  Run 2 accepts `"5 m"` and `format_duration(True)`. Run 3 makes the same five mistakes as in Pi (accepts `-5m`, `1.5h`, `1h,5m`, `1h foo`, `1h5`).
+  It also prints another line after `PASS`.
+- **Inkling test 3, run 1:** with the default compaction setting, it compacted at ~16.7K tokens in the 32K window, twice. Each time it forgot the files and started thinking again. It went past 10 minutes without running its test once and was stopped.
+  The `duration.py` it left was correct (243/243, ASCII passed); the test file had a wrong expected value.
+  Lowering the output limit to 4096 alone did not help (it still compacted at ~16.6K; that run was counted as invalid). With `compaction.buffer 6144` and `keep.tokens 4000`, runs 2 and 3 finished fully clean without a single compaction.
+- **Bonsai test 3:** each run thought for 4-5.5 minutes on its first step. Run 3 went over the 10-minute limit (the user did not stop it), but its result is one of the cleanest: it also rejects `"1ſ"`.
+- Gemma and Bonsai (64K) used at most ~31K and ~20K tokens; they never came near compaction, so the new compaction setting does not affect their results.
 
-### Model karşılaştırması
+### Model comparison
 
-| Model | Kısa sonuç |
+| Model | Short verdict |
 |---|---|
-| **inkling-pi:32k** | Kurallara en sıkı uyan model: iki harness'ta geçerli 5 test 3 çalıştırmasının hepsi 243/243, ASCII kuralı 5'te 4. Kod yazmak için önerilen. opencode'da sıkıştırma ayarı şart. |
-| **bonsai-pi:64k** | Altı test 3 çalıştırmasının hepsi 243/243 ve 8/8; ASCII kuralında zayıf (Pi 0/3, opencode 2/3). Uzun bağlam gereken işler için. opencode'da çok yavaş. |
-| **gemma4:e4b** | En hızlısı ama test 3'te hiçbir çalıştırması tam doğru değil; geçersiz girdileri kabul ediyor ve başarıyı kolay iddia ediyor. Gözetimli küçük düzeltmeler için. |
+| **inkling-pi:32k** | Follows the rules most strictly: all 5 valid test 3 runs across both harnesses scored 243/243, and it passed the ASCII rule in 4 of 5. Recommended for writing code. In opencode it needs the compaction setting. |
+| **bonsai-pi:64k** | All six test 3 runs scored 243/243 and 8/8; weak on the ASCII rule (Pi 0/3, opencode 2/3). For work that needs long context. Very slow in opencode. |
+| **gemma4:e4b** | The fastest, but none of its test 3 runs is fully correct; it accepts invalid input and claims success too easily. For supervised small fixes. |
 
-### Harness karşılaştırması
+### Harness comparison
 
 | | Pi | opencode |
 |---|---|---|
-| Doğruluk | Aynı seviyede | Aynı seviyede |
-| Gemma'nın araç çağrıları | 5 çalıştırmada 3 çağrı kayboldu (Ollama ayrıştıramadı), Pi hata göstermeden durdu | Kayıp yok; hatalı çağrılar araç hatası olarak döndü ve model kendisi düzeltti |
-| Hız (Inkling, Bonsai) | Daha hızlı, daha az düşünme | Test 3'te Inkling ~2, Bonsai 2-4 kat yavaş; Bonsai 5-11 kat fazla düşündü |
-| Küçük bağlam (32K) | Sorunsuz | Varsayılan sıkıştırma ayarı işi engelliyor; ayar gerekiyor |
-| Sistem istemi | Ölçülmedi | ~22-23K karakter, 10-12 araç (ilk istek ~10.7K token) |
-| Güncelleme | Elle | Kendiliğinden güncelledi; komut satırı değişti (`-m` kalktı) |
+| Correctness | Same level | Same level |
+| Gemma's tool calls | 3 calls lost in 5 runs (Ollama could not parse them); Pi stopped without showing an error | None lost; bad calls came back as tool errors and the model fixed them itself |
+| Speed (Inkling, Bonsai) | Faster, less thinking | In test 3, Inkling ~2× and Bonsai 2-4× slower; Bonsai thought 5-11× as much |
+| Small context (32K) | No problems | The default compaction setting blocks the work; needs tuning |
+| System prompt | Not measured | ~22-23K characters, 10-12 tools (first request ~10.7K tokens) |
+| Updates | Manual | Updated itself; the command line changed (`-m` was removed) |
 
-**Sınırlar:** her hücre bir-üç çalıştırma; örnek sayısı az. Bağlam ve çıktı sınırları modeller arasında farklı. opencode'da Inkling'in test 3 ayarı (çıktı 4096, sıkıştırma) Pi'dekinden farklı. Süreler aynı yöntemle ölçülmedi.
+**Limits:** each cell is one to three runs, so the sample is small. Context and output limits differ between models. In opencode, Inkling's test 3 setup (output 4096, compaction) differs from the one in Pi. Times were not measured the same way in both harnesses.

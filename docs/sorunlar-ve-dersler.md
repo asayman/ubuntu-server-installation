@@ -185,7 +185,7 @@ Pi `1.6.0` ile `gemma4:e4b` ve `inkling-pi:32k` denemelerinde görülenler. Ayr�
 
 ## Kod asistanı (opencode) ve yerel modeller
 
-opencode `2.4.2` ile aynı testlerde görülenler. Ayrıntı: [LOG.md](../LOG.md), [bench/](../bench/README.md).
+opencode `2.4.2` ile aynı testlerde görülenler. Ayrıntı: [LOG.md](../LOG.md), [bench/](../bench/README.tr.md).
 
 ### Küçük bağlamda model sürekli sıkıştırıp ilerlemiyor
 - **Belirti:** 32K bağlamlı Inkling, ~16.7K token'da sıkıştırıyor, dosyaları unutup dakikalarca baştan düşünüyor, birkaç dakika sonra yine sıkıştırıyor.
