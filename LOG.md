@@ -963,3 +963,37 @@ Pi denemesi: Gemma ve Inkling ile aynı depolar, istemler ve kontroller; düşü
 - Açık işler: kurulum sonunda `/etc/sudoers.d/90-setup-nopasswd` kaldırılacak.
 - Açık işler (2026-11-25): `/usr/local/ollama-backup-0.40.16`, `~/tmp/ollama18` ve kurulum betikleri silinecek.
 - Sonraya bırakılan iş (2026-11-25, kullanıcı): PrismML llama.cpp fork'u ile `PTQ1_0` denemesi.
+
+## 2026-11-26 — Adım 10: Tailscale kurulumu ve testleri
+
+- Hesap: yeni Tailscale hesabı açıldı (kişisel, ücretsiz plan). Tailnet adı ve hesap bilgisi maskelenmiştir
+  (`<tailnet>`).
+- Kurulum öncesi: `which tailscale` → yok, `systemctl is-active tailscaled` → `inactive`.
+- `curl -fsSL https://tailscale.com/install.sh | sh` → `Installation complete!`
+  - `tailscale version` → `1.104.7` (go1.27.4)
+  - `systemctl is-enabled tailscaled` → `enabled`, `is-active` → `active`
+- `sudo nohup tailscale up --hostname=gpu-server > /tmp/ts-up.log 2>&1 &`
+  - Çıktı: `To authenticate, visit: https://login.tailscale.com/a/<kod>`. Link tarayıcıda açılıp cihaz
+    onaylandı → `Success.`
+  - `--ssh` kullanılmadı: anahtar tabanlı OpenSSH korunuyor, Tailscale yalnızca ağ katmanı.
+- Windows istemciye Tailscale uygulaması kurulup aynı hesapla giriş yapıldı.
+- `tailscale status`:
+  ```
+  100.x.y.z    gpu-server  <hesap>@  linux    -
+  100.a.b.c    <pc>        <hesap>@  windows  -
+  ```
+  - MagicDNS: `gpu-server.<tailnet>.ts.net`. Varsayılan key expiry: 180 gün (2027-05-25).
+- Testler (Windows'tan, aynı LAN'da):
+  - `tailscale ping -c 5 gpu-server` → `pong from gpu-server (100.x.y.z) via 192.168.68.118:41641 in 27ms`
+  - `tailscale status` → `active; direct 192.168.68.118:41641` ✅ (relay/DERP değil)
+  - İlk `ssh <kullanici>@gpu-server` → `Host key verification failed.` Sebep: yeni ad/IP `known_hosts`'ta yok
+    ve `BatchMode=yes` soru sormuyor. `ssh-keyscan -t ed25519 gpu-server | ssh-keygen -lf -` parmak izi LAN'daki
+    ED25519 anahtarla aynı çıktı; `known_hosts`'a eklendi.
+  - `ssh <kullanici>@gpu-server` (MagicDNS) ✅, `ssh <kullanici>@100.x.y.z` ✅
+  - `curl http://gpu-server:11434/api/version` → `{"version":"0.40.18"}` ✅
+- Gözlem: UFW'de 11434 ve 8080 yalnızca `192.168.68.0/24`'e açık, yine de tailnet'ten erişilebiliyor.
+  `tailscaled`'in `ts-input` iptables zinciri `tailscale0` trafiğini UFW'den önce kabul ediyor. Tailnet
+  içindeki tüm cihazlar tüm portlara erişebilir; internete port açılmadı.
+- Bekleyen: ağ dışı (telefon hotspot) SSH testi, yeniden başlatma sonrası otomatik bağlanma, admin panelinde
+  key expiry'nin kapatılması.
+- Sonuç: ✅ Kuruldu, LAN içi testler geçti.
