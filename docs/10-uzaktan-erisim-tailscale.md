@@ -1,6 +1,6 @@
 # 10. (Opsiyonel) Ağ Dışından Uzaktan Erişim: Tailscale
 
-> Durum: ✅ Kuruldu (Tailscale 1.104.7). LAN içi testler geçti; ağ dışı ve yeniden başlatma testleri bekliyor.
+> Durum: ✅ Kuruldu ve test edildi (Tailscale 1.104.7). LAN içi, ağ dışı (hotspot) ve yeniden başlatma testleri geçti.
 > Ayrıntılar: [LOG.md](../LOG.md).
 
 ## Neden Tailscale
@@ -86,7 +86,8 @@ ACL ile kısıtlayın. İnternete herhangi bir port açılmaz.
 
 ## Önerilen ayarlar (Tailscale admin paneli)
 
-- Machines → gpu-server → **Disable key expiry**. Aksi halde anahtar 180 gün sonra düşer ve sunucuda
+- Machines → gpu-server → **Disable key expiry**. Doğrulama: `tailscale status --json` çıktısında `Self` altında
+  `KeyExpiry` alanı olmamalı (`Peer` altındaki tarihler diğer cihazlarındır). Aksi halde anahtar 180 gün sonra düşer ve sunucuda
   yeniden `tailscale up` gerekir (fiziksel/LAN erişimi olmadan bu yapılamaz).
 - MagicDNS açık (yeni hesaplarda varsayılan olarak açık).
 
@@ -98,9 +99,10 @@ ACL ile kısıtlayın. İnternete herhangi bir port açılmaz.
 - [x] Host key parmak izi LAN'daki ile aynı
 - [x] Ollama API tailnet üzerinden yanıt veriyor
 - [x] `systemctl is-enabled tailscaled` → `enabled`
-- [ ] Yerel ağ dışından (örn. telefon hotspot) `ssh gpu-server` çalışıyor
-- [ ] Yeniden başlatma sonrası Tailscale otomatik bağlanıyor
-- [ ] Admin panelinde key expiry kapatıldı
+- [x] Yerel ağ dışından (telefon hotspot) `ssh gpu-server` ve Ollama API çalışıyor; bağlantı yine `direct`
+      (`<ev-public-IP>:41641` üzerinden, yani hat CGNAT değil)
+- [x] Yeniden başlatma sonrası Tailscale otomatik bağlanıyor (SSH ~45 sn'de geri geldi)
+- [x] Admin panelinde key expiry kapatıldı (`tailscale status --json` → `Self` altında `KeyExpiry` yok)
 
 ## Uzaktan açma (Wake on LAN) notu
 

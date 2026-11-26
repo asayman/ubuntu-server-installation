@@ -997,3 +997,20 @@ Pi denemesi: Gemma ve Inkling ile aynı depolar, istemler ve kontroller; düşü
 - Bekleyen: ağ dışı (telefon hotspot) SSH testi, yeniden başlatma sonrası otomatik bağlanma, admin panelinde
   key expiry'nin kapatılması.
 - Sonuç: ✅ Kuruldu, LAN içi testler geçti.
+
+## 2026-11-26 — Adım 10: Tailscale ağ dışı ve yeniden başlatma testleri
+
+- Admin panelinde gpu-server için **Disable key expiry** yapıldı.
+  - Doğrulama: `tailscale status --json` → `Self.KeyExpiry` yok ✅. (`grep -m1 KeyExpiry` ilk eşleşmede
+    Windows peer'ın 2027-05-25 tarihini gösterdi; `Self` ile `Peer` ayrı okunmalı.)
+- Ağ dışı test: Windows PC telefon hotspot'una bağlandı (kullanıcı).
+  - `ssh gpu-server` ✅, `http://gpu-server:11434/api/version` ✅
+  - `tailscale status` → `active; direct <ev-public-IP>:41641` ✅. Hotspot'tan da relay'siz doğrudan bağlantı;
+    ev hattı CGNAT arkasında değil.
+- Yeniden başlatma testi (hotspot'tan, tailnet üzerinden):
+  - Öncesi: model yüklü değil (`/api/ps` boş), başka oturum yok, `open-webui` çalışıyor.
+  - `sudo systemctl reboot` 10:29:44 → `ssh gpu-server` 10:30:31'de yanıt verdi (~45 sn).
+  - Sonrası: `uptime` → `up 0 min`; `tailscaled`, `ollama`, `docker` → `active`; Tailscale IP aynı;
+    `open-webui` otomatik başladı; `nvidia-smi` → RTX A4000, sürücü 595.91.07;
+    Ollama API tailnet'ten `0.40.18` döndü; bağlantı `direct`.
+- Sonuç: ✅ Adım 10 tamamlandı.
